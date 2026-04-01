@@ -39,6 +39,34 @@
 
   body { font-family: var(--font); background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; min-height: 100vh; }
 
+  /* LOGIN SCREEN */
+  #login-screen {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9999; padding: 24px;
+  }
+  #login-screen.hidden { display: none; }
+  .login-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px; padding: 40px 36px; width: 100%;
+    max-width: 380px; text-align: center;
+  }
+  .login-logo { font-size: 36px; margin-bottom: 8px; }
+  .login-title { font-size: 22px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .login-subtitle { font-size: 13px; color: var(--text3); margin-bottom: 28px; }
+  .login-form { text-align: left; }
+  .login-form .form-row { margin-bottom: 14px; }
+  .login-form label { font-size: 12px; font-weight: 500; color: var(--text2); display: block; margin-bottom: 5px; }
+  .login-form input { font-size: 16px; width: 100%; padding: 10px 14px; border: 1px solid var(--border2); border-radius: 8px; background: var(--surface); color: var(--text); outline: none; font-family: var(--font); }
+  .login-form input:focus { border-color: var(--accent); }
+  .login-btn { width: 100%; padding: 12px; background: var(--accent); color: #fff; border: none; border-radius: 8px; font-family: var(--font); font-size: 15px; font-weight: 500; cursor: pointer; margin-top: 8px; transition: background 0.15s; }
+  .login-btn:hover { background: #1e4229; }
+  .login-btn:disabled { background: var(--text3); cursor: not-allowed; }
+  .login-error { font-size: 13px; color: var(--red); margin-top: 10px; text-align: center; min-height: 20px; }
+  .login-footer { font-size: 12px; color: var(--text3); margin-top: 20px; }
+  #app-shell { display: none; }
+  #app-shell.visible { display: block; }
+
   /* NAV */
   nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; gap: 0; position: sticky; top: 0; z-index: 100; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
   nav::-webkit-scrollbar { display: none; }
@@ -188,9 +216,65 @@
 </head>
 <body>
 
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">🏠</div>
+    <div class="login-title">Household Budget</div>
+    <div class="login-subtitle">Sign in to access your budget</div>
+    <div class="login-form">
+      <div class="form-row">
+        <label>Email</label>
+        <input type="email" id="login-email" placeholder="you@example.com" autocomplete="email" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <div class="form-row">
+        <label>Password</label>
+        <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <button class="login-btn" id="login-btn" onclick="doLogin()">Sign in</button>
+      <div class="login-error" id="login-error"></div>
+    </div>
+    <div class="login-footer">Only Blayne &amp; Sophie have access</div>
+  </div>
+</div>
+
+<!-- APP SHELL (hidden until logged in) -->
+<div id="app-shell">
+
+<!-- ═══════════════════════════════════════════════ LOGIN ══ -->
+<div id="login-screen" style="position:fixed;inset:0;background:var(--bg);z-index:999;display:flex;align-items:center;justify-content:center;padding:24px;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:40px 36px;width:100%;max-width:380px;">
+    <div style="text-align:center;margin-bottom:32px;">
+      <div style="font-size:32px;margin-bottom:8px;">🏠</div>
+      <div style="font-size:20px;font-weight:600;color:var(--text);">Household Budget</div>
+      <div style="font-size:13px;color:var(--text3);margin-top:4px;">Sign in to continue</div>
+    </div>
+    <div id="login-error" style="display:none;background:var(--red-bg);color:var(--red);border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:16px;"></div>
+    <div style="margin-bottom:14px;">
+      <label style="font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bottom:5px;">Email</label>
+      <input type="email" id="login-email" placeholder="your@email.com" autocomplete="email"
+        style="width:100%;padding:10px 12px;border:1px solid var(--border2);border-radius:8px;font-size:16px;font-family:var(--font);background:var(--surface);color:var(--text);outline:none;">
+    </div>
+    <div style="margin-bottom:24px;">
+      <label style="font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bottom:5px;">Password</label>
+      <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password"
+        style="width:100%;padding:10px 12px;border:1px solid var(--border2);border-radius:8px;font-size:16px;font-family:var(--font);background:var(--surface);color:var(--text);outline:none;">
+    </div>
+    <button id="login-btn" onclick="doLogin()"
+      style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:500;font-family:var(--font);cursor:pointer;touch-action:manipulation;">
+      Sign in
+    </button>
+    <div id="login-loading" style="display:none;text-align:center;margin-top:16px;font-size:13px;color:var(--text3);">Signing in...</div>
+  </div>
+</div>
+
 <nav>
   <div class="nav-brand">🏠 Household Budget</div>
   <div id="sync-status" style="font-size:11px;margin-left:8px;min-width:80px;"></div>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:12px;padding-right:4px;">
+    <span style="font-size:12px;color:var(--text2);">👤 <span id="nav-user"></span></span>
+    <button onclick="doLogout()" style="font-family:var(--font);font-size:11px;padding:5px 10px;border:1px solid var(--border2);border-radius:6px;background:transparent;color:var(--text2);cursor:pointer;">Sign out</button>
+  </div>
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="showPage('dashboard',this)">Dashboard</button>
     <button class="nav-tab" onclick="showPage('tracker',this)">Monthly Tracker</button>
@@ -785,14 +869,90 @@ const DEFAULT_ACCOUNTS = [
   { name: "Shares / Investments", owner: "Shared", balance: 18000, rate: 0, goalLabel: "Investments", goalTarget: 0, isOffset: false }
 ];
 
-// ════════════════ SUPABASE ════════════════
+// ════════════════ SUPABASE + AUTH ════════════════
 
 const SUPABASE_URL = 'https://eqihdmesceldafbcibgj.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_I5uldzLNuAUfcvxkEVhr5w_wHYeVe8K';
 
+let currentSession = null; // holds { access_token, user }
+
+// ── Auth functions ──────────────────────────────────────────────────────
+
+async function signIn(email, password) {
+  const r = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=password', {
+    method: 'POST',
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ email, password })
+  });
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.error_description || data.msg || 'Login failed');
+  return data; // { access_token, refresh_token, user, ... }
+}
+
+async function refreshSession(refreshToken) {
+  const r = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=refresh_token', {
+    method: 'POST',
+    headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refresh_token: refreshToken })
+  });
+  if (!r.ok) return null;
+  return await r.json();
+}
+
+function getAuthHeaders() {
+  const token = currentSession ? currentSession.access_token : SUPABASE_KEY;
+  return {
+    'apikey': SUPABASE_KEY,
+    'Authorization': 'Bearer ' + token
+  };
+}
+
+function saveSession(session) {
+  currentSession = session;
+  localStorage.setItem('hb_session', JSON.stringify({
+    access_token: session.access_token,
+    refresh_token: session.refresh_token,
+    user: session.user,
+    expires_at: Date.now() + (session.expires_in || 3600) * 1000
+  }));
+}
+
+function clearSession() {
+  currentSession = null;
+  localStorage.removeItem('hb_session');
+}
+
+async function restoreSession() {
+  const raw = localStorage.getItem('hb_session');
+  if (!raw) return false;
+  try {
+    const saved = JSON.parse(raw);
+    // If token expires in more than 5 mins, use it
+    if (saved.expires_at - Date.now() > 300000) {
+      currentSession = saved;
+      return true;
+    }
+    // Otherwise refresh it
+    if (saved.refresh_token) {
+      const fresh = await refreshSession(saved.refresh_token);
+      if (fresh && fresh.access_token) {
+        saveSession(fresh);
+        return true;
+      }
+    }
+  } catch(e) {}
+  clearSession();
+  return false;
+}
+
+// ── Data API functions ──────────────────────────────────────────────────
+
 async function sbGet(table) {
   const r = await fetch(SUPABASE_URL + '/rest/v1/' + table + '?select=*', {
-    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+    headers: getAuthHeaders()
   });
   if (!r.ok) return null;
   const rows = await r.json();
@@ -803,13 +963,66 @@ async function sbUpsert(table, data) {
   await fetch(SUPABASE_URL + '/rest/v1/' + table, {
     method: 'POST',
     headers: {
-      'apikey': SUPABASE_KEY,
-      'Authorization': 'Bearer ' + SUPABASE_KEY,
+      ...getAuthHeaders(),
       'Content-Type': 'application/json',
       'Prefer': 'resolution=merge-duplicates'
     },
     body: JSON.stringify([data])
   });
+}
+
+// ── Login UI functions ──────────────────────────────────────────────────
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const btn = document.getElementById('login-btn');
+  const errEl = document.getElementById('login-error');
+
+  if (!email || !password) { errEl.textContent = 'Please enter your email and password'; return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Signing in...';
+  errEl.textContent = '';
+
+  try {
+    const session = await signIn(email, password);
+    saveSession(session);
+    showApp();
+    await loadFromSupabase();
+    renderDashboard();
+  } catch(e) {
+    errEl.textContent = e.message === 'Invalid login credentials'
+      ? 'Incorrect email or password'
+      : e.message;
+    btn.disabled = false;
+    btn.textContent = 'Sign in';
+  }
+}
+
+function showApp() {
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('app-shell').classList.add('visible');
+  // Update nav with user name
+  const user = currentSession && currentSession.user;
+  if (user) {
+    const nameEl = document.getElementById('nav-user');
+    if (nameEl) {
+      const name = user.user_metadata && user.user_metadata.name
+        ? user.user_metadata.name
+        : user.email.split('@')[0];
+      nameEl.textContent = name.charAt(0).toUpperCase() + name.slice(1);
+    }
+  }
+}
+
+function doLogout() {
+  clearSession();
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('app-shell').classList.remove('visible');
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-password').value = '';
+  document.getElementById('login-error').textContent = '';
 }
 
 // ════════════════ STATE ════════════════
@@ -863,11 +1076,12 @@ async function loadFromSupabase() {
       state.directActuals = row.direct_actuals || {};
       state.accounts = row.accounts || DEFAULT_ACCOUNTS;
       state.config = row.config || state.config;
+      state._lastSaved = new Date(row.updated_at).getTime();
       saveLocal();
       state.synced = true;
       showSyncStatus('ok');
     } else {
-      // First time — push local data up
+      // First time for this user — push local defaults up
       await saveState();
       showSyncStatus('ok');
     }
@@ -2386,6 +2600,116 @@ function saveAccount() {
   renderSavings();
 }
 
+
+// ════════════════ AUTH FUNCTIONS ════════════════
+
+async function sbSignIn(email, password) {
+  const r = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=password', {
+    method: 'POST',
+    headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password })
+  });
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.error_description || data.msg || 'Invalid email or password');
+  currentSession = data;
+  localStorage.setItem('hb_session', JSON.stringify(data));
+  return data;
+}
+
+async function sbSignOut() {
+  try {
+    await fetch(SUPABASE_URL + '/auth/v1/logout', {
+      method: 'POST', headers: getAuthHeaders()
+    });
+  } catch(e) {}
+  currentSession = null;
+  localStorage.removeItem('hb_session');
+}
+
+async function sbRefreshSession(refreshToken) {
+  try {
+    const r = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=refresh_token', {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refreshToken })
+    });
+    if (!r.ok) return null;
+    const data = await r.json();
+    currentSession = data;
+    localStorage.setItem('hb_session', JSON.stringify(data));
+    return data;
+  } catch(e) { return null; }
+}
+
+function showLoginScreen() {
+  const ls = document.getElementById('login-screen');
+  const nav = document.querySelector('nav');
+  if (ls) ls.style.display = 'flex';
+  if (nav) nav.style.display = 'none';
+  document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+}
+
+function hideLoginScreen() {
+  const ls = document.getElementById('login-screen');
+  const nav = document.querySelector('nav');
+  if (ls) ls.style.display = 'none';
+  if (nav) nav.style.display = 'flex';
+}
+
+function addSignOutButton() {
+  const nav = document.querySelector('.nav-tabs');
+  if (!nav || document.getElementById('signout-btn')) return;
+  const btn = document.createElement('button');
+  btn.id = 'signout-btn';
+  btn.className = 'nav-tab';
+  btn.textContent = 'Sign out';
+  btn.style.cssText = 'margin-left:auto;color:var(--text3);';
+  btn.onclick = async function() {
+    if (window._pollInterval) clearInterval(window._pollInterval);
+    await sbSignOut();
+    showLoginScreen();
+    const em = document.getElementById('login-email');
+    const pw = document.getElementById('login-password');
+    if (em) em.value = '';
+    if (pw) pw.value = '';
+    setTimeout(() => { if(em) em.focus(); }, 100);
+  };
+  nav.appendChild(btn);
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  const btnEl = document.getElementById('login-btn');
+  const loadEl = document.getElementById('login-loading');
+  if (!email || !password) {
+    errEl.textContent = 'Please enter your email and password.';
+    errEl.style.display = 'block';
+    return;
+  }
+  btnEl.style.display = 'none';
+  loadEl.style.display = 'block';
+  errEl.style.display = 'none';
+  try {
+    await sbSignIn(email, password);
+    await initApp();
+  } catch(e) {
+    errEl.textContent = e.message || 'Sign in failed. Check your email and password.';
+    errEl.style.display = 'block';
+    btnEl.style.display = 'block';
+    loadEl.style.display = 'none';
+  }
+}
+
+// Enter key to submit login
+document.addEventListener('DOMContentLoaded', function() {
+  const pw = document.getElementById('login-password');
+  if (pw) pw.addEventListener('keydown', function(e) { if (e.key === 'Enter') doLogin(); });
+  const em = document.getElementById('login-email');
+  if (em) em.addEventListener('keydown', function(e) { if (e.key === 'Enter') pw.focus(); });
+});
+
 // ════════════════ INIT ════════════════
 
 populateMonthSelects();
@@ -2393,40 +2717,63 @@ populateImportMonthSel();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
-// Load from Supabase first, then render
-loadFromSupabase().then(() => {
-  renderDashboard();
-}).catch(() => {
-  renderDashboard();
-});
+// ── App initialisation after login ───────────────────────────────────────
 
-// Poll for remote changes every 30 seconds (so Sophie's changes appear on Blayne's screen)
-setInterval(async () => {
-  try {
-    const row = await sbGet('household_data');
-    if (!row) return;
-    const remoteTime = new Date(row.updated_at).getTime();
-    const localTime = state._lastSaved || 0;
-    if (remoteTime > localTime + 5000) {
-      state.budgetItems = row.budget_items || DEFAULT_BUDGET;
-      state.transactions = row.transactions || {};
-      state.directActuals = row.direct_actuals || {};
-      state.accounts = row.accounts || DEFAULT_ACCOUNTS;
-      state.config = row.config || state.config;
-      saveLocal();
-      state._lastSaved = remoteTime;
-      showSyncStatus('ok');
-      // Refresh whichever page is active
-      const active = document.querySelector('.page.active');
-      if (active) {
-        const id = active.id.replace('page-', '');
-        if (id === 'dashboard') renderDashboard();
-        else if (id === 'tracker') renderTracker();
-        else if (id === 'savings') renderSavings();
+async function initApp() {
+  hideLoginScreen();
+  addSignOutButton();
+  await loadFromSupabase();
+  renderDashboard();
+
+  if (window._pollInterval) clearInterval(window._pollInterval);
+  window._pollInterval = setInterval(async () => {
+    try {
+      const row = await sbGet('household_data');
+      if (!row) return;
+      const remoteTime = new Date(row.updated_at).getTime();
+      const localTime = state._lastSaved || 0;
+      if (remoteTime > localTime + 5000) {
+        state.budgetItems = row.budget_items || DEFAULT_BUDGET;
+        state.transactions = row.transactions || {};
+        state.directActuals = row.direct_actuals || {};
+        state.accounts = row.accounts || DEFAULT_ACCOUNTS;
+        state.config = row.config || state.config;
+        saveLocal();
+        state._lastSaved = remoteTime;
+        showSyncStatus('ok');
+        const active = document.querySelector('.page.active');
+        if (active) {
+          const id = active.id.replace('page-', '');
+          if (id === 'dashboard') renderDashboard();
+          else if (id === 'tracker') renderTracker();
+          else if (id === 'savings') renderSavings();
+        }
       }
-    }
-  } catch(e) {}
-}, 30000);
+    } catch(e) {}
+  }, 30000);
+}
+
+// ── Boot: check for saved session, otherwise show login ──────────────────
+
+(async function boot() {
+  showLoginScreen();
+  const saved = localStorage.getItem('hb_session');
+  if (saved) {
+    try {
+      const session = JSON.parse(saved);
+      const refreshed = await sbRefreshSession(session.refresh_token);
+      if (refreshed) {
+        await initApp();
+        return;
+      }
+    } catch(e) {}
+  }
+  setTimeout(() => {
+    const em = document.getElementById('login-email');
+    if (em) em.focus();
+  }, 150);
+})();
 </script>
+</div><!-- end app-shell -->
 </body>
 </html>
