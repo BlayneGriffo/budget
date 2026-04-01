@@ -190,6 +190,7 @@
 
 <nav>
   <div class="nav-brand">🏠 Household Budget</div>
+  <div id="sync-status" style="font-size:11px;margin-left:8px;min-width:80px;"></div>
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="showPage('dashboard',this)">Dashboard</button>
     <button class="nav-tab" onclick="showPage('tracker',this)">Monthly Tracker</button>
@@ -784,6 +785,35 @@ const DEFAULT_ACCOUNTS = [
   { name: "Shares / Investments", owner: "Shared", balance: 18000, rate: 0, goalLabel: "Investments", goalTarget: 0, isOffset: false }
 ];
 
+// ════════════════ SUPABASE ════════════════
+
+const SUPABASE_URL = 'https://eqihdmesceldafbcibgj.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_I5uldzLNuAUfcvxkEVhr5w_wHYeVe8K';
+
+async function sbGet(table) {
+  const r = await fetch(SUPABASE_URL + '/rest/v1/' + table + '?select=*', {
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+  });
+  if (!r.ok) return null;
+  const rows = await r.json();
+  return rows.length > 0 ? rows[0] : null;
+}
+
+async function sbUpsert(table, data) {
+  await fetch(SUPABASE_URL + '/rest/v1/' + table, {
+    method: 'POST',
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': 'resolution=merge-duplicates'
+    },
+    body: JSON.stringify([data])
+  });
+}
+
+// ════════════════ STATE ════════════════
+
 let state = {
   budgetItems: JSON.parse(localStorage.getItem('budget_items') || 'null') || DEFAULT_BUDGET,
   transactions: JSON.parse(localStorage.getItem('transactions') || '{}'),
@@ -793,15 +823,71 @@ let state = {
     blayneAmt: 1592, blayneFreq: 'weekly',
     sophieAmt: 2671.72, sophieFreq: 'fortnightly',
     loanBalance: 653456.44, rate: 5.80, offset: 26200
-  }
+  },
+  synced: false
 };
 
-function saveState() {
+function saveLocal() {
   localStorage.setItem('budget_items', JSON.stringify(state.budgetItems));
   localStorage.setItem('transactions', JSON.stringify(state.transactions));
   localStorage.setItem('direct_actuals', JSON.stringify(state.directActuals));
   localStorage.setItem('savings_accounts', JSON.stringify(state.accounts));
   localStorage.setItem('config', JSON.stringify(state.config));
+}
+
+async function saveState() {
+  state._lastSaved = Date.now();
+  saveLocal();
+  try {
+    await sbUpsert('household_data', {
+      id: 1,
+      budget_items: state.budgetItems,
+      transactions: state.transactions,
+      direct_actuals: state.directActuals,
+      accounts: state.accounts,
+      config: state.config,
+      updated_at: new Date().toISOString()
+    });
+  } catch(e) {
+    console.warn('Supabase sync failed, saved locally:', e.message);
+  }
+}
+
+async function loadFromSupabase() {
+  showSyncStatus('syncing');
+  try {
+    const row = await sbGet('household_data');
+    if (row) {
+      state.budgetItems = row.budget_items || DEFAULT_BUDGET;
+      state.transactions = row.transactions || {};
+      state.directActuals = row.direct_actuals || {};
+      state.accounts = row.accounts || DEFAULT_ACCOUNTS;
+      state.config = row.config || state.config;
+      saveLocal();
+      state.synced = true;
+      showSyncStatus('ok');
+    } else {
+      // First time — push local data up
+      await saveState();
+      showSyncStatus('ok');
+    }
+  } catch(e) {
+    console.warn('Could not load from Supabase, using local data:', e.message);
+    showSyncStatus('offline');
+  }
+}
+
+function showSyncStatus(status) {
+  const el = document.getElementById('sync-status');
+  if (!el) return;
+  if (status === 'syncing') {
+    el.innerHTML = '<span style="color:var(--amber);">⟳ Syncing...</span>';
+  } else if (status === 'ok') {
+    el.innerHTML = '<span style="color:var(--green);">✓ Synced</span>';
+    setTimeout(() => { if(el) el.innerHTML = ''; }, 3000);
+  } else if (status === 'offline') {
+    el.innerHTML = '<span style="color:var(--text3);">Offline — local only</span>';
+  }
 }
 
 // ════════════════ HELPERS ════════════════
@@ -2307,7 +2393,40 @@ populateImportMonthSel();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
-renderDashboard();
+// Load from Supabase first, then render
+loadFromSupabase().then(() => {
+  renderDashboard();
+}).catch(() => {
+  renderDashboard();
+});
+
+// Poll for remote changes every 30 seconds (so Sophie's changes appear on Blayne's screen)
+setInterval(async () => {
+  try {
+    const row = await sbGet('household_data');
+    if (!row) return;
+    const remoteTime = new Date(row.updated_at).getTime();
+    const localTime = state._lastSaved || 0;
+    if (remoteTime > localTime + 5000) {
+      state.budgetItems = row.budget_items || DEFAULT_BUDGET;
+      state.transactions = row.transactions || {};
+      state.directActuals = row.direct_actuals || {};
+      state.accounts = row.accounts || DEFAULT_ACCOUNTS;
+      state.config = row.config || state.config;
+      saveLocal();
+      state._lastSaved = remoteTime;
+      showSyncStatus('ok');
+      // Refresh whichever page is active
+      const active = document.querySelector('.page.active');
+      if (active) {
+        const id = active.id.replace('page-', '');
+        if (id === 'dashboard') renderDashboard();
+        else if (id === 'tracker') renderTracker();
+        else if (id === 'savings') renderSavings();
+      }
+    }
+  } catch(e) {}
+}, 30000);
 </script>
 </body>
 </html>
