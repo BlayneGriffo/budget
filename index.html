@@ -251,9 +251,6 @@
 <body>
 
 <!-- APP SHELL (hidden until logged in) -->
-<div id="app-shell">
-
-<!-- LOGIN SCREEN - shown before auth -->
 <div id="login-screen" style="position:fixed;inset:0;background:var(--bg);z-index:999;display:flex;align-items:center;justify-content:center;padding:24px;">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:40px 36px;width:100%;max-width:380px;">
     <div style="text-align:center;margin-bottom:32px;">
@@ -279,6 +276,8 @@
     <div id="login-loading" style="display:none;text-align:center;margin-top:16px;font-size:13px;color:var(--text3);">Signing in...</div>
   </div>
 </div>
+
+<div id="app-shell" style="display:none;">
 
 <nav>
   <div class="nav-brand">🏠 Household Budget</div>
@@ -2810,10 +2809,9 @@ async function sbRefreshSession(refreshToken) {
 
 function showLoginScreen() {
   const ls = document.getElementById('login-screen');
-  const nav = document.querySelector('nav');
+  const appEl = document.getElementById('app-shell');
   if (ls) ls.style.display = 'flex';
-  if (nav) nav.style.display = 'none';
-  document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+  if (appEl) appEl.style.display = 'none';
 }
 
 function hideLoginScreen() {
