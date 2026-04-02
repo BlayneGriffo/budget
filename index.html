@@ -355,6 +355,15 @@
     </div>
   </div>
 
+  <!-- Category budget alerts -->
+  <div id="dash-alerts" style="display:none;margin-bottom:16px;"></div>
+
+  <!-- Rolling averages (shows after 2+ months of data) -->
+  <div id="dash-rolling" style="display:none;" class="card mb-16">
+    <div class="card-title">spending trends — 3-month rolling average</div>
+    <div id="dash-rolling-content"></div>
+  </div>
+
   <div class="card mb-16">
     <div class="flex between flex-center mb-12">
       <div class="card-title" style="margin:0;" id="dash-chart-title">month-by-month expenses — 2026</div>
@@ -711,7 +720,8 @@
 <div id="page-import" class="page">
 
   <div style="font-size:20px;font-weight:600;margin-bottom:6px;">Import Transactions</div>
-  <div style="font-size:13px;color:var(--text3);margin-bottom:24px;">Upload a bank statement screenshot or CSV export. AI will read the transactions, categorise them against your budget, and let you review before saving.</div>
+  <div style="font-size:13px;color:var(--text3);margin-bottom:12px;">Upload a bank statement screenshot or CSV export. AI will read the transactions, categorise them against your budget, and let you review before saving.</div>
+  <div style="padding:8px 12px;background:var(--green-bg);border-radius:8px;font-size:12px;color:var(--green);margin-bottom:24px;">🔒 Files are processed in-memory only and discarded immediately after analysis. No screenshots or bank files are ever stored on our servers.</div>
 
   <div class="grid-2 mb-16">
 
@@ -1581,6 +1591,202 @@ function renderDashboard() {
         '</tbody></table>';
     }
   }
+
+  // ── CATEGORY BUDGET ALERTS ──
+  renderCategoryAlerts(year, month, tab, expenses);
+
+  // ── ROLLING AVERAGES ──
+  renderRollingAverages(year, month, tab);
+}
+
+// ════════════════ CATEGORY BUDGET ALERTS ════════════════
+
+function renderCategoryAlerts(year, month, tab, expenses) {
+  var alertsEl = document.getElementById('dash-alerts');
+  if (!alertsEl) return;
+
+  var txns = getMonthTxns(year, month);
+  // Build per-category actuals for the selected person tab
+  var catActuals = {};
+  VAR_CATS.forEach(function(c) { catActuals[c] = 0; });
+  txns.forEach(function(t) {
+    var share = 1;
+    if (tab !== 'combined') {
+      var person = tab === 'blayne' ? 'Blayne' : 'Sophie';
+      if (t.owner !== person && t.owner !== 'Shared') return;
+      if (t.owner === 'Shared') share = 0.5;
+    }
+    if (catActuals[t.cat] !== undefined) catActuals[t.cat] += t.amount * share;
+    else catActuals['Other'] += t.amount * share;
+  });
+
+  // Get variable budget per category for this person view
+  var varBudget = {};
+  if (tab === 'combined') {
+    VAR_CATS.forEach(function(c) { varBudget[c] = VAR_BUDGET_MAP[c] || 0; });
+  } else {
+    VAR_CATS.forEach(function(c) { varBudget[c] = 0; });
+    state.budgetItems.filter(function(i) { return i.type === 'Variable'; }).forEach(function(item) {
+      var catKey = 'Other';
+      for (var v = 0; v < VAR_CATS.length; v++) {
+        if (item.desc.toLowerCase().indexOf(VAR_CATS[v].toLowerCase().replace(' / ',' ').split(' ')[0]) !== -1) { catKey = VAR_CATS[v]; break; }
+      }
+      var person = tab === 'blayne' ? 'Blayne' : 'Sophie';
+      var share = 0;
+      if (item.owner === person) share = item.monthly || 0;
+      else if (item.owner === 'Shared') share = (item.monthly || 0) * 0.5;
+      if (varBudget[catKey] !== undefined) varBudget[catKey] += share;
+    });
+  }
+
+  // Build alerts for categories that are at 80%+ of budget
+  var alerts = [];
+  VAR_CATS.forEach(function(c) {
+    var bud = varBudget[c] || 0;
+    var act = catActuals[c] || 0;
+    if (bud <= 0 || act <= 0) return;
+    var pct = act / bud * 100;
+    if (pct >= 80) {
+      alerts.push({ cat: c, budget: bud, actual: act, pct: pct });
+    }
+  });
+
+  if (alerts.length === 0) {
+    alertsEl.style.display = 'none';
+    return;
+  }
+
+  // Sort by severity (highest % first)
+  alerts.sort(function(a, b) { return b.pct - a.pct; });
+
+  alertsEl.style.display = 'block';
+  alertsEl.innerHTML = alerts.map(function(a) {
+    var isOver = a.pct >= 100;
+    var bgColor = isOver ? 'var(--red-bg)' : '#fef3cd';
+    var borderColor = isOver ? 'var(--red)' : '#f0c040';
+    var textColor = isOver ? 'var(--red)' : '#856404';
+    var icon = isOver ? '🔴' : '🟡';
+    var label = isOver
+      ? icon + ' <strong>' + a.cat + '</strong> is over budget — ' + fmt(a.actual) + ' spent of ' + fmt(a.budget) + ' (' + a.pct.toFixed(0) + '%)'
+      : icon + ' <strong>' + a.cat + '</strong> is at ' + a.pct.toFixed(0) + '% — ' + fmt(a.actual) + ' of ' + fmt(a.budget) + ' (' + fmt(a.budget - a.actual) + ' left)';
+
+    return '<div style="padding:10px 14px;background:' + bgColor + ';border-left:3px solid ' + borderColor + ';border-radius:0 8px 8px 0;margin-bottom:6px;font-size:13px;color:' + textColor + ';">' + label + '</div>';
+  }).join('');
+}
+
+// ════════════════ ROLLING AVERAGES ════════════════
+
+function renderRollingAverages(year, month, tab) {
+  var rollingEl = document.getElementById('dash-rolling');
+  var contentEl = document.getElementById('dash-rolling-content');
+  if (!rollingEl || !contentEl) return;
+
+  // Collect actuals for the last 3 months (including current)
+  var monthsData = [];
+  for (var i = 2; i >= 0; i--) {
+    var m = month - i;
+    var y = year;
+    if (m < 0) { m += 12; y--; }
+    var txns = getMonthTxns(y, m);
+    if (txns.length === 0) continue;
+
+    var catTotals = {};
+    VAR_CATS.forEach(function(c) { catTotals[c] = 0; });
+    txns.forEach(function(t) {
+      var share = 1;
+      if (tab !== 'combined') {
+        var person = tab === 'blayne' ? 'Blayne' : 'Sophie';
+        if (t.owner !== person && t.owner !== 'Shared') return;
+        if (t.owner === 'Shared') share = 0.5;
+      }
+      if (catTotals[t.cat] !== undefined) catTotals[t.cat] += t.amount * share;
+      else catTotals['Other'] += t.amount * share;
+    });
+
+    monthsData.push({ year: y, month: m, cats: catTotals });
+  }
+
+  // Need at least 2 months of data to show trends
+  if (monthsData.length < 2) {
+    rollingEl.style.display = 'none';
+    return;
+  }
+
+  rollingEl.style.display = 'block';
+
+  // Calculate averages and trends
+  var currentMonth = monthsData[monthsData.length - 1];
+  var previousMonths = monthsData.slice(0, -1);
+  var numPrev = previousMonths.length;
+
+  var rows = [];
+  VAR_CATS.forEach(function(c) {
+    var currentAmt = currentMonth.cats[c] || 0;
+    var prevAvg = previousMonths.reduce(function(s, md) { return s + (md.cats[c] || 0); }, 0) / numPrev;
+    var budget = VAR_BUDGET_MAP[c] || 0;
+
+    // Only show categories with meaningful data
+    if (currentAmt <= 0 && prevAvg <= 0) return;
+    if (budget <= 0 && currentAmt <= 0 && prevAvg <= 0) return;
+
+    var diff = currentAmt - prevAvg;
+    var diffPct = prevAvg > 0 ? (diff / prevAvg * 100) : 0;
+
+    rows.push({
+      cat: c,
+      current: currentAmt,
+      avg: prevAvg,
+      budget: budget,
+      diff: diff,
+      diffPct: diffPct
+    });
+  });
+
+  if (rows.length === 0) {
+    rollingEl.style.display = 'none';
+    return;
+  }
+
+  // Sort by absolute difference (biggest movers first)
+  rows.sort(function(a, b) { return Math.abs(b.diff) - Math.abs(a.diff); });
+
+  var monthCount = monthsData.length;
+  var periodLabel = monthCount >= 3 ? '3-month' : '2-month';
+
+  contentEl.innerHTML =
+    '<div style="font-size:12px;color:var(--text3);margin-bottom:10px;">Comparing this month to your ' + periodLabel + ' average. Based on ' + monthCount + ' month' + (monthCount > 1 ? 's' : '') + ' of data.</div>' +
+    '<table class="tbl"><thead><tr>' +
+      '<th>category</th>' +
+      '<th class="num">this month</th>' +
+      '<th class="num">' + periodLabel + ' avg</th>' +
+      '<th class="num">budget</th>' +
+      '<th class="num">trend</th>' +
+    '</tr></thead><tbody>' +
+    rows.map(function(r) {
+      var trendIcon, trendColor, trendText;
+      if (Math.abs(r.diffPct) < 5) {
+        trendIcon = '→'; trendColor = 'var(--text3)'; trendText = 'steady';
+      } else if (r.diff > 0) {
+        trendIcon = '↑'; trendColor = 'var(--red)'; trendText = '+' + fmt(r.diff) + ' (' + r.diffPct.toFixed(0) + '%)';
+      } else {
+        trendIcon = '↓'; trendColor = 'var(--green)'; trendText = fmt(r.diff) + ' (' + r.diffPct.toFixed(0) + '%)';
+      }
+
+      // Highlight if current month is significantly over budget
+      var rowStyle = '';
+      if (r.budget > 0 && r.current > r.budget) {
+        rowStyle = 'background:var(--red-bg);';
+      }
+
+      return '<tr style="' + rowStyle + '">' +
+        '<td>' + r.cat + '</td>' +
+        '<td class="num">' + fmt(r.current) + '</td>' +
+        '<td class="num" style="color:var(--text3);">' + fmt(r.avg) + '</td>' +
+        '<td class="num" style="color:var(--text3);">' + fmt(r.budget) + '</td>' +
+        '<td class="num" style="color:' + trendColor + ';font-weight:500;">' + trendIcon + ' ' + trendText + '</td>' +
+      '</tr>';
+    }).join('') +
+    '</tbody></table>';
 }
 
 function renderTrendChart(tab) {
@@ -2508,6 +2714,12 @@ If you cannot read any transactions, return an empty array [].`;
     const cleaned = raw.replace(/```json|```/g, '').trim();
     importResults = JSON.parse(cleaned);
 
+    // Security: immediately discard the raw file data (screenshot/CSV) from memory
+    // The extracted transaction data is all we need from this point forward
+    importFileData = null;
+    var fileInput = document.getElementById('imp-file-input');
+    if (fileInput) fileInput.value = '';
+
     if (!Array.isArray(importResults)) throw new Error('Unexpected response format');
 
     document.getElementById('imp-status').style.display = 'none';
@@ -2523,6 +2735,10 @@ If you cannot read any transactions, return an empty array [].`;
     renderImportResults(importResults, monthLabel);
 
   } catch (err) {
+    // Security: clear file data even on error
+    importFileData = null;
+    var errFileInput = document.getElementById('imp-file-input');
+    if (errFileInput) errFileInput.value = '';
     document.getElementById('imp-status').style.display = 'block';
     document.getElementById('imp-spinner').style.display = 'none';
     document.getElementById('imp-status-text').textContent = '✗ Error: ' + err.message;
