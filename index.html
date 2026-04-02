@@ -2769,80 +2769,124 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // ════════════════ UP BANK ════════════════
 
-const UP_TOKEN = 'up:yeah:shUan5cCPYWRnlstTzSunX5EXjM4cmlqFJBZmH842CFBD4HFqvaZwSeBA2gb4xYBJZZ64cj3XyA8vtV0h8svQ0avqGsEhRhtLd6ncfcNAjtpGO6dCM9winUKD31yBYB8';
-const UP_BASE  = 'https://api.up.com.au/api/v1';
+// Up Bank tokens — Blayne's personal + 2Up shared account
+// Sophie can add her token here once she generates one from the Up app
+const UP_TOKENS = {
+  'Blayne':  'up:yeah:shUan5cCPYWRnlstTzSunX5EXjM4cmlqFJBZmH842CFBD4HFqvaZwSeBA2gb4xYBJZZ64cj3XyA8vtV0h8svQ0avqGsEhRhtLd6ncfcNAjtpGO6dCM9winUKD31yBYB8',
+  'Sophie':  '',   // Add Sophie's token here once she generates it
+  'Shared':  'up:yeah:shUan5cCPYWRnlstTzSunX5EXjM4cmlqFJBZmH842CFBD4HFqvaZwSeBA2gb4xYBJZZ64cj3XyA8vtV0h8svQ0avqGsEhRhtLd6ncfcNAjtpGO6dCM9winUKD31yBYB8',  // 2Up uses Blayne's token — 2Up accounts appear in both members' transaction lists
+};
 
-async function upGet(path) {
-  const r = await fetch(UP_BASE + path, {
-    headers: { 'Authorization': 'Bearer ' + UP_TOKEN }
+// Proxy URL — routes through Netlify Function to avoid CORS
+const UP_PROXY = '/.netlify/functions/up-proxy';
+
+async function upGet(path, token) {
+  const r = await fetch(UP_PROXY + '?path=' + encodeURIComponent(path), {
+    headers: { 'X-Up-Token': token }
   });
-  if (!r.ok) throw new Error('Up API error: ' + r.status);
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    throw new Error(err.error || 'Up API error: ' + r.status);
+  }
   return await r.json();
 }
 
-async function upGetAll(path) {
-  // Paginate through all results
+async function upGetAll(path, token) {
   let results = [];
-  let url = UP_BASE + path;
-  while (url) {
-    const r = await fetch(url, {
-      headers: { 'Authorization': 'Bearer ' + UP_TOKEN }
-    });
-    if (!r.ok) break;
-    const data = await r.json();
+  let currentPath = path;
+  while (currentPath) {
+    const data = await upGet(currentPath, token);
     results = results.concat(data.data || []);
-    url = data.links && data.links.next ? data.links.next : null;
+    // Up returns full next URL — extract just the path+query for proxy
+    if (data.links && data.links.next) {
+      const nextUrl = new URL(data.links.next);
+      currentPath = nextUrl.pathname.replace('/api/v1', '') + nextUrl.search;
+    } else {
+      currentPath = null;
+    }
   }
   return results;
 }
 
 async function fetchUpTransactions() {
-  const btn = document.getElementById('up-fetch-btn');
-  const status = document.getElementById('up-status');
+  const btn      = document.getElementById('up-fetch-btn');
+  const statusEl = document.getElementById('up-status');
   const resultsEl = document.getElementById('up-results');
 
   btn.disabled = true;
   btn.textContent = 'Fetching...';
-  status.style.display = 'block';
-  status.innerHTML = '<div style="display:flex;align-items:center;gap:10px;"><div style="width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;"></div><span style="font-size:13px;color:var(--text2);">Connecting to Up Bank...</span></div>';
+  statusEl.style.display = 'block';
   resultsEl.style.display = 'none';
 
+  const setStatus = (msg, spin) => {
+    statusEl.innerHTML = spin
+      ? '<div style="display:flex;align-items:center;gap:10px;"><div style="width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0;"></div><span style="font-size:13px;color:var(--text2);">' + msg + '</span></div>'
+      : '<span style="font-size:13px;color:var(--text2);">' + msg + '</span>';
+  };
+
   try {
-    // Get the selected month range
     const monthSel = document.getElementById('up-month-sel');
     const [yr, mo] = monthSel.value.split('-').map(Number);
     const since = new Date(yr, mo, 1).toISOString();
     const until = new Date(yr, mo + 1, 0, 23, 59, 59).toISOString();
     const owner = document.getElementById('up-owner').value;
+    const token = UP_TOKENS[owner] || UP_TOKENS['Blayne'];
 
-    status.innerHTML = '<div style="display:flex;align-items:center;gap:10px;"><div style="width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;"></div><span style="font-size:13px;color:var(--text2);">Loading transactions from Up...</span></div>';
-
-    const txns = await upGetAll('/transactions?filter[status]=SETTLED&filter[since]=' + encodeURIComponent(since) + '&filter[until]=' + encodeURIComponent(until) + '&pageSize=100');
-
-    // Filter to debits only (negative amounts)
-    const debits = txns.filter(t => parseFloat(t.attributes.amount.value) < 0);
-
-    if (debits.length === 0) {
-      status.innerHTML = '<span style="font-size:13px;color:var(--text2);">No transactions found for ' + MONTHS_FULL[mo] + ' ' + yr + '.</span>';
-      btn.disabled = false;
-      btn.textContent = 'Fetch from Up Bank';
+    if (!token) {
+      setStatus('No Up Bank token for ' + owner + '. Add their token in the app code.');
+      btn.disabled = false; btn.textContent = 'Fetch from Up Bank';
       return;
     }
 
-    status.innerHTML = '<div style="display:flex;align-items:center;gap:10px;"><div style="width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;"></div><span style="font-size:13px;color:var(--text2);">Categorising ' + debits.length + ' transactions with AI...</span></div>';
+    setStatus('Connecting to Up Bank...', true);
 
-    // Build transaction list for AI
+    let txns = [];
+
+    if (owner === 'Shared') {
+      // 2Up joint account — find joint accounts then fetch their transactions
+      setStatus('Finding 2Up joint account...', true);
+      const accountsData = await upGet('/accounts?filter[ownershipType]=JOINT', token);
+      const jointAccounts = (accountsData.data || []);
+      if (jointAccounts.length === 0) {
+        setStatus('No 2Up joint account found. Make sure 2Up is set up in your Up app.');
+        btn.disabled = false; btn.textContent = 'Fetch from Up Bank';
+        return;
+      }
+      setStatus('Loading 2Up transactions...', true);
+      for (const acct of jointAccounts) {
+        const path = '/accounts/' + acct.id + '/transactions?filter[status]=SETTLED&filter[since]=' + encodeURIComponent(since) + '&filter[until]=' + encodeURIComponent(until) + '&page[size]=100';
+        const acctTxns = await upGetAll(path, token);
+        txns = txns.concat(acctTxns);
+      }
+    } else {
+      // Personal account transactions
+      setStatus('Loading transactions from Up...', true);
+      const path = '/transactions?filter[status]=SETTLED&filter[since]=' + encodeURIComponent(since) + '&filter[until]=' + encodeURIComponent(until) + '&page[size]=100';
+      txns = await upGetAll(path, token);
+    }
+
+    // Debits only (negative amounts)
+    const debits = txns.filter(t => parseFloat(t.attributes.amount.value) < 0);
+
+    if (debits.length === 0) {
+      setStatus('No debit transactions found for ' + MONTHS_FULL[mo] + ' ' + yr + '.');
+      btn.disabled = false; btn.textContent = 'Fetch from Up Bank';
+      return;
+    }
+
+    setStatus('Categorising ' + debits.length + ' transactions with AI...', true);
+
     const txnText = debits.map(t => {
       const date = t.attributes.createdAt.slice(0, 10);
       const desc = t.attributes.description;
-      const amt = Math.abs(parseFloat(t.attributes.amount.value)).toFixed(2);
+      const amt  = Math.abs(parseFloat(t.attributes.amount.value)).toFixed(2);
       return date + '  ' + desc + '  -$' + amt;
     }).join('\n');
 
     const monthLabel = MONTHS_FULL[mo] + ' ' + yr;
     const catList = 'Groceries, Dining Out, Uber Eats, Alcohol / Pub, Fuel, Transport, Medical, Personal Care, Clothing, Entertainment, Personal Spending, Home Maintenance, Utilities, Subscriptions, Other';
 
-    const systemPrompt = 'You are a financial transaction categoriser for an Australian household budget app. Account owner: ' + owner + '. Period: ' + monthLabel + '. Categories: ' + catList + '. Rules: map each transaction to the best category. Woolworths/Coles/Aldi/IGA=Groceries; restaurants/cafes=Dining Out; Menulog/DoorDash/Uber Eats=Uber Eats; BWS/Dan Murphys/pubs=Alcohol / Pub; BP/Shell/Ampol/fuel=Fuel; Uber/taxi/transport=Transport; pharmacy/doctor=Medical; haircut/beauty=Personal Care; clothing=Clothing; cinema/events=Entertainment; Netflix/Spotify/subscriptions=Subscriptions; Bunnings/hardware=Home Maintenance; power/gas/water/internet=Utilities; everything else=Other. For owner: use "' + owner + '" unless clearly shared. Respond ONLY with valid JSON array, no markdown: [{"date":"YYYY-MM-DD","desc":"clean merchant name","cat":"Category","owner":"' + owner + '","amount":12.50}]';
+    const systemPrompt = 'You are a financial transaction categoriser for an Australian household budget app. Account owner: ' + owner + '. Period: ' + monthLabel + '. Categories: ' + catList + '. Rules: map each transaction to the best category. Woolworths/Coles/Aldi/IGA=Groceries; restaurants/cafes=Dining Out; Menulog/DoorDash/Uber Eats=Uber Eats; BWS/Dan Murphys/pubs=Alcohol / Pub; BP/Shell/Ampol/fuel=Fuel; Uber/taxi/transport=Transport; pharmacy/doctor=Medical; haircut/beauty=Personal Care; clothing=Clothing; cinema/events=Entertainment; Netflix/Spotify/subscriptions=Subscriptions; Bunnings/hardware=Home Maintenance; power/gas/water/internet=Utilities; everything else=Other. Respond ONLY with valid JSON array, no markdown: [{"date":"YYYY-MM-DD","desc":"clean merchant name","cat":"Category","owner":"' + owner + '","amount":12.50}]';
 
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -2856,22 +2900,19 @@ async function fetchUpTransactions() {
     });
 
     const aiData = await resp.json();
-    const raw = aiData.content.find(b => b.type === 'text')?.text || '[]';
+    const raw = (aiData.content.find(b => b.type === 'text') || {}).text || '[]';
     const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
 
-    status.style.display = 'none';
+    statusEl.style.display = 'none';
     btn.disabled = false;
     btn.textContent = 'Fetch from Up Bank';
 
-    // Reuse the existing renderImportResults function
     importResults = parsed;
     renderImportResults(parsed, monthLabel);
-
-    // Point confirmImport to the right month
-    document.getElementById('imp-month-sel') && (document.getElementById('imp-month-sel').value = monthSel.value);
+    document.getElementById('imp-month-sel').value = monthSel.value;
 
   } catch(e) {
-    status.innerHTML = '<span style="font-size:13px;color:var(--red);">Error: ' + e.message + '</span>';
+    statusEl.innerHTML = '<span style="font-size:13px;color:var(--red);">Error: ' + e.message + '</span>';
     btn.disabled = false;
     btn.textContent = 'Fetch from Up Bank';
   }
