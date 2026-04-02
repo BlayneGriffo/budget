@@ -628,7 +628,57 @@
       <button class="btn" onclick="closeModal('modal-budget-item')">Cancel</button>
     </div>
   </div>
+
+  </div><!-- end budget-items-section -->
+
+  <div id="merchant-rules-section" style="display:none;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+    <div class="section-title" style="margin:0;">merchant category rules</div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-primary" onclick="showAddRuleModal()">+ Add rule</button>
+      <button class="btn" onclick="showPage('budget',document.querySelector('.nav-tab'))">← Back to budget</button>
+    </div>
+  </div>
+  <div class="card" style="margin-bottom:12px;">
+    <div style="font-size:13px;color:var(--text2);line-height:1.6;">
+      When importing transactions, these rules are checked first. If a merchant name contains the pattern, it's assigned that category automatically. Your custom rules take priority over the built-in defaults.
+    </div>
+  </div>
+  <div class="card">
+    <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:12px;">your custom rules</div>
+    <div id="merchant-rules-list"></div>
+    <div id="merchant-rules-empty" style="display:none;font-size:13px;color:var(--text3);text-align:center;padding:20px 0;">No custom rules yet. Use the 💾 Remember button when reviewing imports.</div>
+  </div>
 </div>
+
+  <!-- Add Rule Modal -->
+  <div class="modal-overlay" id="add-rule-modal">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-title">Add merchant rule</div>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bottom:5px;">Merchant pattern (partial match)</label>
+      <input type="text" id="rule-pattern" placeholder="e.g. woolworths" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:8px;font-family:var(--font);font-size:14px;color:var(--text);">
+      <div style="font-size:11px;color:var(--text3);margin-top:4px;">Any transaction containing this text will be matched (case-insensitive)</div>
+    </div>
+    <div style="margin-bottom:20px;">
+      <label style="font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bottom:5px;">Category</label>
+      <select id="rule-cat" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:8px;font-family:var(--font);font-size:14px;color:var(--text);">
+        <option>Groceries</option><option>Dining Out</option><option>Uber Eats</option>
+        <option>Alcohol / Pub</option><option>Fuel</option><option>Transport</option>
+        <option>Medical</option><option>Personal Care</option><option>Clothing</option>
+        <option>Entertainment</option><option>Personal Spending</option>
+        <option>Home Maintenance</option><option>Utilities</option>
+        <option>Subscriptions</option><option>Other</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-primary" onclick="saveNewRule()" style="flex:1;">Save rule</button>
+      <button class="btn" onclick="closeModal('add-rule-modal')" style="flex:1;">Cancel</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- end page-budget -->
 
 <!-- ═══════════════════════════════════════════════ IMPORT ══ -->
 <div id="page-import" class="page">
@@ -806,55 +856,9 @@ Or copy straight from your banking app — any format is fine."
 </div>
 
 
-  </div><!-- end budget-items-section -->
+  
 
-<!-- MERCHANT RULES SECTION (inside budget settings page) -->
-<div id="merchant-rules-section" style="display:none;">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
-    <div class="section-title" style="margin:0;">merchant category rules</div>
-    <div style="display:flex;gap:8px;">
-      <button class="btn btn-primary" onclick="showAddRuleModal()">+ Add rule</button>
-      <button class="btn" onclick="showPage('budget',document.querySelector('.nav-tab'))">← Back to budget</button>
-    </div>
-  </div>
-  <div class="card" style="margin-bottom:12px;">
-    <div style="font-size:13px;color:var(--text2);line-height:1.6;">
-      When importing transactions, these rules are checked first. If a merchant name contains the pattern, it's assigned that category automatically. Your custom rules take priority over the built-in defaults.
-    </div>
-  </div>
-  <div class="card">
-    <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:12px;">your custom rules</div>
-    <div id="merchant-rules-list"></div>
-    <div id="merchant-rules-empty" style="display:none;font-size:13px;color:var(--text3);text-align:center;padding:20px 0;">No custom rules yet. Use the 💾 Remember button when reviewing imports.</div>
-  </div>
-</div>
 
-<!-- Add Rule Modal -->
-<div class="modal-overlay" id="add-rule-modal">
-  <div class="modal" style="max-width:400px;">
-    <div class="modal-title">Add merchant rule</div>
-    <div style="margin-bottom:12px;">
-      <label style="font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bottom:5px;">Merchant pattern (partial match)</label>
-      <input type="text" id="rule-pattern" placeholder="e.g. woolworths" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:8px;font-family:var(--font);font-size:14px;color:var(--text);">
-      <div style="font-size:11px;color:var(--text3);margin-top:4px;">Any transaction containing this text will be matched (case-insensitive)</div>
-    </div>
-    <div style="margin-bottom:20px;">
-      <label style="font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bottom:5px;">Category</label>
-      <select id="rule-cat" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:8px;font-family:var(--font);font-size:14px;color:var(--text);">
-        <option>Groceries</option><option>Dining Out</option><option>Uber Eats</option>
-        <option>Alcohol / Pub</option><option>Fuel</option><option>Transport</option>
-        <option>Medical</option><option>Personal Care</option><option>Clothing</option>
-        <option>Entertainment</option><option>Personal Spending</option>
-        <option>Home Maintenance</option><option>Utilities</option>
-        <option>Subscriptions</option><option>Other</option>
-      </select>
-    </div>
-    <div style="display:flex;gap:8px;">
-      <button class="btn btn-primary" onclick="saveNewRule()" style="flex:1;">Save rule</button>
-      <button class="btn" onclick="closeModal('add-rule-modal')" style="flex:1;">Cancel</button>
-    </div>
-  </div>
-</div>
 
 <!-- ═══════════════════════════════════════════════ SAVINGS ══ -->
 <div id="page-savings" class="page">
@@ -1120,6 +1124,61 @@ const SUPABASE_URL = 'https://eqihdmesceldafbcibgj.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_I5uldzLNuAUfcvxkEVhr5w_wHYeVe8K';
 
 let currentSession = null; // holds { access_token, user }
+
+function getAuthHeaders() {
+  const token = (currentSession && currentSession.access_token) ? currentSession.access_token : SUPABASE_KEY;
+  return {
+    'apikey': SUPABASE_KEY,
+    'Authorization': 'Bearer ' + token,
+    'Content-Type': 'application/json',
+    'Prefer': 'return=minimal'
+  };
+}
+
+async function sbGet(table) {
+  try {
+    const r = await fetch(SUPABASE_URL + '/rest/v1/' + table + '?select=*&limit=1', {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': 'Bearer ' + ((currentSession && currentSession.access_token) ? currentSession.access_token : SUPABASE_KEY)
+      }
+    });
+    if (!r.ok) {
+      const err = await r.text();
+      console.warn('sbGet error:', r.status, err);
+      return null;
+    }
+    const rows = await r.json();
+    return rows.length > 0 ? rows[0] : null;
+  } catch(e) {
+    console.warn('sbGet exception:', e.message);
+    return null;
+  }
+}
+
+async function sbUpsert(table, data) {
+  try {
+    const r = await fetch(SUPABASE_URL + '/rest/v1/' + table, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': 'Bearer ' + ((currentSession && currentSession.access_token) ? currentSession.access_token : SUPABASE_KEY),
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates'
+      },
+      body: JSON.stringify([data])
+    });
+    if (!r.ok) {
+      const err = await r.text();
+      console.warn('sbUpsert error:', r.status, err);
+      throw new Error('Supabase write failed: ' + r.status + ' ' + err.slice(0, 100));
+    }
+    return true;
+  } catch(e) {
+    console.warn('sbUpsert exception:', e.message);
+    throw e;
+  }
+}
 
 
 function showApp() {
