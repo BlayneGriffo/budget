@@ -279,7 +279,7 @@
 
 <div id="app-shell" style="display:none;">
 
-<nav>
+<nav style="display:none;">
   <div class="nav-brand">🏠 Household Budget</div>
   <div id="sync-status" style="font-size:11px;margin-left:8px;min-width:80px;"></div>
   <div style="margin-left:auto;display:flex;align-items:center;gap:12px;padding-right:4px;">
@@ -968,10 +968,12 @@ let currentSession = null; // holds { access_token, user }
 
 function showApp() {
   const loginEl = document.getElementById('login-screen');
-  const appEl = document.getElementById('app-shell');
+  const appEl   = document.getElementById('app-shell');
+  const nav     = document.querySelector('nav');
   if (loginEl) loginEl.style.display = 'none';
-  if (appEl) appEl.style.display = 'block';
-  // Update nav with user name
+  if (appEl)   appEl.style.display   = 'block';
+  if (nav)     nav.style.display     = 'flex';
+  // Update nav with logged-in user name
   const user = currentSession && currentSession.user;
   if (user) {
     const nameEl = document.getElementById('nav-user');
@@ -982,8 +984,8 @@ function showApp() {
       nameEl.textContent = name.charAt(0).toUpperCase() + name.slice(1);
     }
   }
-  // Trigger resize so Chart.js calculates canvas dimensions correctly
-  setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
+  // Let Chart.js recalculate canvas size now that elements are visible
+  setTimeout(() => window.dispatchEvent(new Event('resize')), 80);
 }
 
 function doLogout() {
@@ -2685,10 +2687,21 @@ async function sbRefreshSession(refreshToken) {
 }
 
 function showLoginScreen() {
-  const ls = document.getElementById('login-screen');
+  const ls    = document.getElementById('login-screen');
   const appEl = document.getElementById('app-shell');
-  if (ls) ls.style.display = 'flex';
+  const nav   = document.querySelector('nav');
+  if (ls)    ls.style.display    = 'flex';
   if (appEl) appEl.style.display = 'none';
+  if (nav)   nav.style.display   = 'none';
+  // Clear any leftover input values
+  const em = document.getElementById('login-email');
+  const pw = document.getElementById('login-password');
+  const er = document.getElementById('login-error');
+  if (er) er.style.display = 'none';
+  const btn = document.getElementById('login-btn');
+  const load = document.getElementById('login-loading');
+  if (btn)  btn.style.display  = 'block';
+  if (load) load.style.display = 'none';
 }
 
 function hideLoginScreen() {
@@ -2916,7 +2929,7 @@ populateImportMonthSel();
 // ── App initialisation after login ───────────────────────────────────────
 
 async function initApp() {
-  hideLoginScreen();
+  showApp();
   addSignOutButton();
   await loadFromSupabase();
   renderDashboard();
