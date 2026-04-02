@@ -2239,7 +2239,7 @@ If you cannot read any transactions, return an empty array [].`;
 
     document.getElementById('imp-status-text').textContent = 'AI is reading your transactions…';
 
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    const resp = await fetch('/.netlify/functions/ai-proxy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -2888,7 +2888,7 @@ async function fetchUpTransactions() {
 
     const systemPrompt = 'You are a financial transaction categoriser for an Australian household budget app. Account owner: ' + owner + '. Period: ' + monthLabel + '. Categories: ' + catList + '. Rules: map each transaction to the best category. Woolworths/Coles/Aldi/IGA=Groceries; restaurants/cafes=Dining Out; Menulog/DoorDash/Uber Eats=Uber Eats; BWS/Dan Murphys/pubs=Alcohol / Pub; BP/Shell/Ampol/fuel=Fuel; Uber/taxi/transport=Transport; pharmacy/doctor=Medical; haircut/beauty=Personal Care; clothing=Clothing; cinema/events=Entertainment; Netflix/Spotify/subscriptions=Subscriptions; Bunnings/hardware=Home Maintenance; power/gas/water/internet=Utilities; everything else=Other. Respond ONLY with valid JSON array, no markdown: [{"date":"YYYY-MM-DD","desc":"clean merchant name","cat":"Category","owner":"' + owner + '","amount":12.50}]';
 
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    const resp = await fetch('/.netlify/functions/ai-proxy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
