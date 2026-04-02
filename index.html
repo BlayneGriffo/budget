@@ -382,13 +382,26 @@
     <div class="card-title">recent transactions this month</div>
     <div id="dash-transactions"></div>
   </div>
+
+  <!-- Shared expense settlement -->
+  <div class="card" id="dash-settlement-card" style="display:none;">
+    <div class="card-title">shared expense settlement — <span id="settlement-month-label"></span></div>
+    <div id="dash-settlement"></div>
+  </div>
 </div>
 
 <!-- ═══════════════════════════════════════════════ TRACKER ══ -->
 <div id="page-tracker" class="page">
 
   <div class="flex between flex-center mb-20" style="flex-wrap:wrap;gap:12px;">
-    <div style="font-size:20px;font-weight:600;">Monthly Tracker</div>
+    <div>
+      <div style="font-size:20px;font-weight:600;">Monthly Tracker</div>
+      <!-- Pay period toggle -->
+      <div style="display:flex;gap:4px;margin-top:6px;">
+        <button id="period-month-btn" onclick="setPeriodView('month')" style="font-family:var(--font);font-size:11px;font-weight:500;padding:4px 10px;border:1px solid var(--accent);border-radius:6px;cursor:pointer;background:var(--accent);color:#fff;">Monthly</button>
+        <button id="period-pay-btn" onclick="setPeriodView('pay')" style="font-family:var(--font);font-size:11px;font-weight:500;padding:4px 10px;border:1px solid var(--border2);border-radius:6px;cursor:pointer;background:var(--surface);color:var(--text3);">Pay period</button>
+      </div>
+    </div>
     <div class="flex gap-8 flex-center" style="flex-wrap:wrap;">
       <!-- Person toggle -->
       <div style="display:flex;border:1px solid var(--border2);border-radius:8px;overflow:hidden;">
@@ -403,6 +416,11 @@
 
   <!-- Context bar — shows what's included for the selected person -->
   <div id="tracker-context-bar" style="display:none;margin-bottom:16px;padding:10px 14px;border-radius:8px;font-size:13px;line-height:1.6;"></div>
+
+  <!-- Pay period info bar -->
+  <div id="tracker-pay-period-bar" style="display:none;margin-bottom:16px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;">
+    <div id="tracker-pay-period-info" style="font-size:13px;color:var(--text2);line-height:1.6;"></div>
+  </div>
 
   <div class="metrics" id="tracker-metrics"></div>
 
@@ -1265,6 +1283,7 @@ let state = {
     loanBalance: 653456.44, rate: 5.80, offset: 26200
   },
   merchantRules: JSON.parse(localStorage.getItem('merchant_rules') || '[]'),
+  settlements: JSON.parse(localStorage.getItem('settlements') || '{}'),
   synced: false
 };
 
@@ -1275,6 +1294,7 @@ function saveLocal() {
   localStorage.setItem('savings_accounts', JSON.stringify(state.accounts));
   localStorage.setItem('config', JSON.stringify(state.config));
   localStorage.setItem('merchant_rules', JSON.stringify(state.merchantRules || []));
+  localStorage.setItem('settlements', JSON.stringify(state.settlements || {}));
 }
 
 async function saveState() {
@@ -1597,6 +1617,14 @@ function renderDashboard() {
 
   // ── ROLLING AVERAGES ──
   renderRollingAverages(year, month, tab);
+
+  // ── SHARED EXPENSE SETTLEMENT ──
+  if (tab === 'combined') {
+    renderSettlement(year, month);
+  } else {
+    var settCard = document.getElementById('dash-settlement-card');
+    if (settCard) settCard.style.display = 'none';
+  }
 }
 
 // ════════════════ CATEGORY BUDGET ALERTS ════════════════
@@ -1995,6 +2023,9 @@ function renderTracker() {
         'Direct-entry actuals are combined-household only; use the transactions list for personal tracking.';
     }
   }
+
+  // ── Pay period bar ──
+  renderPayPeriodBar(tab);
 
   // ── Month label ──
   document.getElementById('tracker-month-label').textContent = MONTHS_FULL[month] + ' ' + year + (tab !== 'combined' ? ' — ' + (tab === 'blayne' ? 'Blayne' : 'Sophie') : '');
@@ -3653,6 +3684,254 @@ function dismissSyncBanner() {
   setLastSyncTime(); // Don't nag again this session
 }
 
+
+// ════════════════ SHARED EXPENSE SETTLEMENT ════════════════
+
+// Settlement is calculated from transfers INTO the 2UP joint account.
+// During auto-sync or manual Up Bank fetch, we store transfer-in data separately.
+// Settlement data format: state.settlements = { '2026-3': { blayne: 1500, sophie: 1200 } }
+
+function getSettlementData(year, month) {
+  if (!state.settlements) state.settlements = {};
+  var mk = getMonthKey(year, month);
+  return state.settlements[mk] || { blayne: 0, sophie: 0 };
+}
+
+function renderSettlement(year, month) {
+  var card = document.getElementById('dash-settlement-card');
+  var el = document.getElementById('dash-settlement');
+  var labelEl = document.getElementById('settlement-month-label');
+  if (!card || !el) return;
+
+  var data = getSettlementData(year, month);
+  var blayneIn = data.blayne || 0;
+  var sophieIn = data.sophie || 0;
+
+  // Also check transactions tagged as shared to calculate what SHOULD have been split
+  var txns = getMonthTxns(year, month);
+  var sharedSpend = 0;
+  txns.forEach(function(t) {
+    if (t.owner === 'Shared') sharedSpend += (t.amount || 0);
+  });
+
+  // If no settlement data and no shared spending, hide the card
+  if (blayneIn === 0 && sophieIn === 0 && sharedSpend === 0) {
+    card.style.display = 'none';
+    return;
+  }
+
+  card.style.display = 'block';
+  if (labelEl) labelEl.textContent = MONTHS_FULL[month] + ' ' + year;
+
+  var fairShare = sharedSpend / 2;
+  var totalIn = blayneIn + sophieIn;
+  var blayneFairPct = totalIn > 0 ? (blayneIn / totalIn * 100) : 50;
+  var sophieFairPct = totalIn > 0 ? (sophieIn / totalIn * 100) : 50;
+
+  // Who owes whom based on transfers into the joint account
+  var diff = blayneIn - sophieIn;
+  var settlementMsg;
+  if (Math.abs(diff) < 1) {
+    settlementMsg = '<span style="color:var(--green);font-weight:500;">✓ Even — you\'ve both transferred the same amount.</span>';
+  } else if (diff > 0) {
+    settlementMsg = '<span style="color:var(--accent);font-weight:500;">Sophie owes Blayne <strong>' + fmt(diff / 2) + '</strong> to even up.</span>';
+  } else {
+    settlementMsg = '<span style="color:var(--accent);font-weight:500;">Blayne owes Sophie <strong>' + fmt(Math.abs(diff) / 2) + '</strong> to even up.</span>';
+  }
+
+  el.innerHTML =
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">' +
+      '<div style="padding:12px;background:var(--surface2);border-radius:8px;text-align:center;">' +
+        '<div style="font-size:12px;color:var(--text3);margin-bottom:4px;">Blayne transferred in</div>' +
+        '<div style="font-size:22px;font-weight:700;color:var(--text);">' + fmt(blayneIn) + '</div>' +
+        '<div style="font-size:11px;color:var(--text3);margin-top:2px;">' + blayneFairPct.toFixed(0) + '% of total</div>' +
+      '</div>' +
+      '<div style="padding:12px;background:var(--surface2);border-radius:8px;text-align:center;">' +
+        '<div style="font-size:12px;color:var(--text3);margin-bottom:4px;">Sophie transferred in</div>' +
+        '<div style="font-size:22px;font-weight:700;color:var(--text);">' + fmt(sophieIn) + '</div>' +
+        '<div style="font-size:11px;color:var(--text3);margin-top:2px;">' + sophieFairPct.toFixed(0) + '% of total</div>' +
+      '</div>' +
+    '</div>' +
+    '<div style="margin-bottom:12px;">' +
+      '<div style="display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--surface2);">' +
+        '<div style="width:' + blayneFairPct + '%;background:#185FA5;transition:width 0.3s;"></div>' +
+        '<div style="width:' + sophieFairPct + '%;background:#D4537E;transition:width 0.3s;"></div>' +
+      '</div>' +
+      '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-top:4px;">' +
+        '<span>Blayne ' + blayneFairPct.toFixed(0) + '%</span>' +
+        '<span>Sophie ' + sophieFairPct.toFixed(0) + '%</span>' +
+      '</div>' +
+    '</div>' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">' +
+      '<div style="font-size:13px;">' + settlementMsg + '</div>' +
+      '<div style="font-size:12px;color:var(--text3);">Total shared spend: ' + fmt(sharedSpend) + ' · Fair share each: ' + fmt(fairShare) + '</div>' +
+    '</div>' +
+    '<div style="margin-top:12px;font-size:11px;color:var(--text3);line-height:1.5;">Settlement is based on actual transfers into the 2UP joint account. Use the Up Bank sync to pull transfer data, or manually enter amounts below.</div>' +
+    '<div style="display:flex;gap:8px;margin-top:10px;align-items:flex-end;">' +
+      '<div style="flex:1;"><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px;">Blayne transferred ($)</label>' +
+        '<input type="number" id="settle-blayne" value="' + (blayneIn || '') + '" placeholder="0" step="0.01" min="0" style="width:100%;padding:6px 8px;font-size:13px;" oninput="updateSettlement(' + year + ',' + month + ')"></div>' +
+      '<div style="flex:1;"><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px;">Sophie transferred ($)</label>' +
+        '<input type="number" id="settle-sophie" value="' + (sophieIn || '') + '" placeholder="0" step="0.01" min="0" style="width:100%;padding:6px 8px;font-size:13px;" oninput="updateSettlement(' + year + ',' + month + ')"></div>' +
+    '</div>';
+}
+
+function updateSettlement(year, month) {
+  var mk = getMonthKey(year, month);
+  if (!state.settlements) state.settlements = {};
+  var bVal = parseFloat(document.getElementById('settle-blayne').value) || 0;
+  var sVal = parseFloat(document.getElementById('settle-sophie').value) || 0;
+  state.settlements[mk] = { blayne: bVal, sophie: sVal };
+  saveState();
+  // Re-render to update the bar and message
+  renderSettlement(year, month);
+}
+
+// ════════════════ PAY PERIOD VIEW ════════════════
+
+var periodView = 'month'; // 'month' or 'pay'
+
+function setPeriodView(view) {
+  periodView = view;
+  var monthBtn = document.getElementById('period-month-btn');
+  var payBtn = document.getElementById('period-pay-btn');
+  if (monthBtn && payBtn) {
+    if (view === 'month') {
+      monthBtn.style.background = 'var(--accent)'; monthBtn.style.color = '#fff'; monthBtn.style.borderColor = 'var(--accent)';
+      payBtn.style.background = 'var(--surface)'; payBtn.style.color = 'var(--text3)'; payBtn.style.borderColor = 'var(--border2)';
+    } else {
+      payBtn.style.background = 'var(--accent)'; payBtn.style.color = '#fff'; payBtn.style.borderColor = 'var(--accent)';
+      monthBtn.style.background = 'var(--surface)'; monthBtn.style.color = 'var(--text3)'; monthBtn.style.borderColor = 'var(--border2)';
+    }
+  }
+  renderTracker();
+}
+
+function getPayPeriodInfo(tab) {
+  var now = new Date();
+  var today = now.getDay(); // 0=Sun
+  var cfg = state.config;
+  var result = {};
+
+  if (tab === 'sophie') {
+    // Sophie is paid fortnightly
+    // Assume pay day is every second Friday — find the current pay period
+    // We'll use a reference date: assume a known payday and calculate from there
+    // Default reference: first Friday of 2026 (2 Jan 2026 is Friday? Let me just use a simple approach)
+    var freq = 'Fortnightly';
+    var amt = cfg.sophieAmt || 2671.72;
+    var periodDays = 14;
+    // Find current period: reference payday (Jan 2 2026 was a Friday)
+    var refPayday = new Date(2026, 0, 2); // Jan 2 2026
+    var daysSinceRef = Math.floor((now - refPayday) / (1000 * 60 * 60 * 24));
+    var periodNum = Math.floor(daysSinceRef / periodDays);
+    var periodStart = new Date(refPayday.getTime() + periodNum * periodDays * 86400000);
+    var periodEnd = new Date(periodStart.getTime() + (periodDays - 1) * 86400000);
+    var dayInPeriod = Math.floor((now - periodStart) / 86400000) + 1;
+
+    result = { person: 'Sophie', freq: freq, amt: amt, periodDays: periodDays,
+      start: periodStart, end: periodEnd, dayInPeriod: dayInPeriod,
+      startStr: formatDateShort(periodStart), endStr: formatDateShort(periodEnd) };
+  } else {
+    // Blayne or combined — use weekly (Blayne's pay cycle)
+    var freq = 'Weekly';
+    var amt = tab === 'combined' ? ((cfg.blayneAmt || 1592) + (cfg.sophieAmt || 2671.72) / 2) : (cfg.blayneAmt || 1592);
+    var periodDays = 7;
+    // Week starts on Monday
+    var dayOfWeek = now.getDay(); // 0=Sun
+    var mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    var periodStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() + mondayOffset);
+    var periodEnd = new Date(periodStart.getTime() + 6 * 86400000);
+    var dayInPeriod = Math.floor((now - periodStart) / 86400000) + 1;
+
+    result = { person: tab === 'combined' ? 'Household' : 'Blayne', freq: freq, amt: amt,
+      periodDays: periodDays, start: periodStart, end: periodEnd, dayInPeriod: dayInPeriod,
+      startStr: formatDateShort(periodStart), endStr: formatDateShort(periodEnd) };
+  }
+
+  return result;
+}
+
+function formatDateShort(d) {
+  var day = d.getDate();
+  var mon = MONTHS[d.getMonth()];
+  return day + ' ' + mon;
+}
+
+function getPayPeriodTransactions(tab, periodStart, periodEnd) {
+  // Get transactions that fall within the pay period dates
+  var startStr = periodStart.toISOString().slice(0, 10);
+  var endStr = periodEnd.toISOString().slice(0, 10);
+  // Check both the period's month and potentially the next month if period spans months
+  var allTxns = [];
+  var startMonth = periodStart.getMonth();
+  var endMonth = periodEnd.getMonth();
+  var startYear = periodStart.getFullYear();
+  var endYear = periodEnd.getFullYear();
+
+  allTxns = allTxns.concat(getMonthTxns(startYear, startMonth));
+  if (startMonth !== endMonth || startYear !== endYear) {
+    allTxns = allTxns.concat(getMonthTxns(endYear, endMonth));
+  }
+
+  // Filter to period date range
+  var filtered = allTxns.filter(function(t) {
+    return t.date >= startStr && t.date <= endStr;
+  });
+
+  // Filter to person
+  if (tab !== 'combined') {
+    var person = tab === 'blayne' ? 'Blayne' : 'Sophie';
+    filtered = filtered.filter(function(t) { return t.owner === person || t.owner === 'Shared'; });
+  }
+
+  return filtered;
+}
+
+function renderPayPeriodBar(tab) {
+  var barEl = document.getElementById('tracker-pay-period-bar');
+  var infoEl = document.getElementById('tracker-pay-period-info');
+  if (!barEl || !infoEl) return;
+
+  if (periodView !== 'pay') {
+    barEl.style.display = 'none';
+    return;
+  }
+
+  barEl.style.display = 'block';
+  var pp = getPayPeriodInfo(tab);
+  var txns = getPayPeriodTransactions(tab, pp.start, pp.end);
+  var spent = txns.reduce(function(s, t) {
+    var share = (t.owner === 'Shared' && tab !== 'combined') ? 0.5 : 1;
+    return s + (t.amount || 0) * share;
+  }, 0);
+
+  // Calculate daily budget from variable expenses
+  var cfg = state.config;
+  var mortFn = calcMortgagePmt(cfg.loanBalance, cfg.rate);
+  var mortMonthly = mortFn * 2;
+  var expenses = getPersonExpenses(tab, state.budgetItems, mortMonthly);
+  var dailyVarBudget = expenses.variable / 30.44; // Average days per month
+  var periodBudget = dailyVarBudget * pp.periodDays;
+  var remaining = periodBudget - spent;
+  var pctUsed = periodBudget > 0 ? (spent / periodBudget * 100) : 0;
+  var pctColor = pctUsed > 100 ? 'var(--red)' : pctUsed > 75 ? '#d4a017' : 'var(--green)';
+
+  infoEl.innerHTML =
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
+      '<div><strong>' + pp.person + '\'s pay period</strong> · ' + pp.freq + ' · ' + pp.startStr + ' – ' + pp.endStr + '</div>' +
+      '<div style="font-size:12px;color:var(--text3);">Day ' + pp.dayInPeriod + ' of ' + pp.periodDays + '</div>' +
+    '</div>' +
+    '<div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:10px;margin-bottom:10px;">' +
+      '<div style="text-align:center;"><div style="font-size:11px;color:var(--text3);">Pay</div><div style="font-size:16px;font-weight:600;">' + fmt(pp.amt) + '</div></div>' +
+      '<div style="text-align:center;"><div style="font-size:11px;color:var(--text3);">Period budget</div><div style="font-size:16px;font-weight:600;">' + fmt(periodBudget) + '</div></div>' +
+      '<div style="text-align:center;"><div style="font-size:11px;color:var(--text3);">Spent</div><div style="font-size:16px;font-weight:600;color:' + pctColor + ';">' + fmt(spent) + '</div></div>' +
+      '<div style="text-align:center;"><div style="font-size:11px;color:var(--text3);">Remaining</div><div style="font-size:16px;font-weight:600;color:' + (remaining >= 0 ? 'var(--green)' : 'var(--red)') + ';">' + fmt(Math.abs(remaining)) + (remaining < 0 ? ' over' : '') + '</div></div>' +
+    '</div>' +
+    '<div style="height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;">' +
+      '<div style="height:100%;width:' + Math.min(pctUsed, 100) + '%;background:' + pctColor + ';border-radius:3px;transition:width 0.3s;"></div>' +
+    '</div>' +
+    '<div style="font-size:11px;color:var(--text3);margin-top:4px;">' + pctUsed.toFixed(0) + '% of period variable budget used · ' + txns.length + ' transaction' + (txns.length === 1 ? '' : 's') + ' this period</div>';
+}
 
 // ════════════════ MERCHANT RULES UI ════════════════
 
