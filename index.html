@@ -300,6 +300,33 @@
 <!-- ═══════════════════════════════════════════════ DASHBOARD ══ -->
 <div id="page-dashboard" class="page active">
 
+  <!-- Auto-sync banner -->
+  <div id="autosync-banner" style="display:none;margin-bottom:16px;padding:14px 18px;background:var(--surface);border:1px solid var(--border);border-radius:12px;">
+    <div id="autosync-progress" style="display:none;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0;"></div>
+        <span id="autosync-progress-text" style="font-size:13px;color:var(--text2);">Syncing with Up Bank...</span>
+      </div>
+    </div>
+    <div id="autosync-done" style="display:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <span id="autosync-done-text" style="font-size:13px;color:var(--green);">✓ Synced</span>
+        <button class="btn" onclick="dismissSyncBanner()" style="padding:4px 12px;font-size:12px;">Dismiss</button>
+      </div>
+    </div>
+    <div id="autosync-review" style="display:none;">
+      <div style="margin-bottom:10px;font-size:14px;font-weight:600;">Unknown merchants need categorising</div>
+      <div id="autosync-review-list"></div>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button class="btn btn-primary" onclick="confirmAutoSync()" style="font-size:13px;">Save &amp; continue</button>
+        <button class="btn" onclick="dismissSyncBanner()" style="font-size:13px;">Skip</button>
+      </div>
+    </div>
+    <div id="autosync-error" style="display:none;">
+      <span id="autosync-error-text" style="font-size:13px;color:var(--red);"></span>
+    </div>
+  </div>
+
   <div class="flex between flex-center mb-20" style="flex-wrap:wrap;gap:12px;">
     <div>
       <div style="font-size:22px;font-weight:600;">Household Budget</div>
@@ -3026,6 +3053,9 @@ const UP_TOKENS = {
   'Shared':  'up:yeah:shUan5cCPYWRnlstTzSunX5EXjM4cmlqFJBZmH842CFBD4HFqvaZwSeBA2gb4xYBJZZ64cj3XyA8vtV0h8svQ0avqGsEhRhtLd6ncfcNAjtpGO6dCM9winUKD31yBYB8',  // 2Up uses Blayne's token
 };
 
+// Auto-sync settings
+const AUTOSYNC_INTERVAL_HOURS = 4; // Sync if last sync was more than this many hours ago
+
 // Proxy URL — routes through Netlify Function to avoid CORS
 const UP_PROXY = '/.netlify/functions/up-proxy';
 
@@ -3046,7 +3076,6 @@ async function upGetAll(path, token) {
   while (currentPath) {
     const data = await upGet(currentPath, token);
     results = results.concat(data.data || []);
-    // Up returns full next URL — extract just the path+query for proxy
     if (data.links && data.links.next) {
       const nextUrl = new URL(data.links.next);
       currentPath = nextUrl.pathname.replace('/api/v1', '') + nextUrl.search;
@@ -3057,6 +3086,76 @@ async function upGetAll(path, token) {
   return results;
 }
 
+// ── Shared: fetch transactions for a given owner/account type ──
+// Returns raw Up API transaction objects
+async function fetchUpRawTransactions(owner, since, until) {
+  const token = UP_TOKENS[owner];
+  if (!token) return [];
+
+  let txns = [];
+  if (owner === 'Shared') {
+    const accountsData = await upGet('/accounts?filter[ownershipType]=JOINT', token);
+    const jointAccounts = (accountsData.data || []);
+    for (const acct of jointAccounts) {
+      const path = '/accounts/' + acct.id + '/transactions?filter[status]=SETTLED&filter[since]=' + encodeURIComponent(since) + '&filter[until]=' + encodeURIComponent(until) + '&page[size]=100';
+      const acctTxns = await upGetAll(path, token);
+      txns = txns.concat(acctTxns);
+    }
+  } else {
+    // Personal accounts — filter to INDIVIDUAL only (not JOINT)
+    const accountsData = await upGet('/accounts?filter[ownershipType]=INDIVIDUAL', token);
+    const personalAccounts = (accountsData.data || []);
+    for (const acct of personalAccounts) {
+      const path = '/accounts/' + acct.id + '/transactions?filter[status]=SETTLED&filter[since]=' + encodeURIComponent(since) + '&filter[until]=' + encodeURIComponent(until) + '&page[size]=100';
+      const acctTxns = await upGetAll(path, token);
+      txns = txns.concat(acctTxns);
+    }
+  }
+  return txns;
+}
+
+// ── Shared: filter transactions (outgoing only + third-party reimbursements) ──
+function filterUpTransactions(txns) {
+  return txns.filter(function(t) {
+    var amt = parseFloat(t.attributes.amount.value);
+    var desc = (t.attributes.description || '').toLowerCase();
+    // Exclude inter-account transfers
+    var isTransfer = t.relationships && t.relationships.transferAccount && t.relationships.transferAccount.data;
+    if (isTransfer) return false;
+    // Debits (money out) — always include
+    if (amt < 0) return true;
+    // Credits (money in) — only include third-party reimbursements
+    if (amt > 0) {
+      var skip = ['interest','salary','wages','pay','round up','cover','forward','transfer','bonus','rebate','cashback','refund'];
+      for (var p = 0; p < skip.length; p++) { if (desc.indexOf(skip[p]) !== -1) return false; }
+      if (desc.indexOf('blayne') !== -1 || desc.indexOf('sophie') !== -1) return false;
+      return true; // Third party paying you back
+    }
+    return false;
+  });
+}
+
+// ── Shared: parse raw txns into our format ──
+function parseUpTransactions(txns, owner) {
+  return txns.map(function(t) {
+    var date = t.attributes.createdAt.slice(0, 10);
+    var desc = t.attributes.description;
+    var rawAmt = parseFloat(t.attributes.amount.value);
+    var amt = Math.abs(rawAmt);
+    var cat = categorizeMerchant(desc);
+    var isCredit = rawAmt > 0;
+    return {
+      date: date,
+      desc: desc + (isCredit ? ' (reimbursement)' : ''),
+      cat: cat,
+      owner: owner,
+      amount: isCredit ? -amt : amt,
+      _upId: t.id  // Track Up transaction ID to prevent duplicates
+    };
+  });
+}
+
+// ── Manual fetch (Import tab button) ──
 async function fetchUpTransactions() {
   const btn      = document.getElementById('up-fetch-btn');
   const statusEl = document.getElementById('up-status');
@@ -3079,115 +3178,37 @@ async function fetchUpTransactions() {
     const since = new Date(yr, mo, 1).toISOString();
     const until = new Date(yr, mo + 1, 0, 23, 59, 59).toISOString();
     const owner = document.getElementById('up-owner').value;
-
-    // FIX 1: Sophie must have her own token — don't fall back to Blayne's
     const token = UP_TOKENS[owner];
+
     if (!token) {
       if (owner === 'Sophie') {
         statusEl.innerHTML = '<span style="font-size:13px;color:#856404;">Sophie\'s Up Bank token is not configured yet. She needs to generate her own token from the Up app → Profile → Data sharing → Personal Access Token. Then add it to the UP_TOKENS.Sophie field in the code.</span>';
       } else {
-        setStatus('No Up Bank token for ' + owner + '. Add their token in the app code.');
+        setStatus('No Up Bank token for ' + owner + '.');
       }
       btn.disabled = false; btn.textContent = 'Fetch from Up Bank';
       return;
     }
 
     setStatus('Connecting to Up Bank...', true);
-
-    let txns = [];
-
-    if (owner === 'Shared') {
-      // FIX 2a: 2Up joint account — fetch ONLY from JOINT ownership accounts
-      setStatus('Finding 2Up joint account...', true);
-      const accountsData = await upGet('/accounts?filter[ownershipType]=JOINT', token);
-      const jointAccounts = (accountsData.data || []);
-      if (jointAccounts.length === 0) {
-        setStatus('No 2Up joint account found. Make sure 2Up is set up in your Up app.');
-        btn.disabled = false; btn.textContent = 'Fetch from Up Bank';
-        return;
-      }
-      setStatus('Loading 2Up transactions...', true);
-      for (const acct of jointAccounts) {
-        const path = '/accounts/' + acct.id + '/transactions?filter[status]=SETTLED&filter[since]=' + encodeURIComponent(since) + '&filter[until]=' + encodeURIComponent(until) + '&page[size]=100';
-        const acctTxns = await upGetAll(path, token);
-        txns = txns.concat(acctTxns);
-      }
-    } else {
-      // FIX 2b: Personal accounts — fetch ONLY from INDIVIDUAL ownership accounts
-      // Previously this used the global /transactions endpoint which mixed personal + 2UP
-      setStatus('Finding personal accounts...', true);
-      const accountsData = await upGet('/accounts?filter[ownershipType]=INDIVIDUAL', token);
-      const personalAccounts = (accountsData.data || []);
-      if (personalAccounts.length === 0) {
-        setStatus('No personal Up accounts found for ' + owner + '.');
-        btn.disabled = false; btn.textContent = 'Fetch from Up Bank';
-        return;
-      }
-      setStatus('Loading ' + owner + '\'s personal transactions...', true);
-      for (const acct of personalAccounts) {
-        const path = '/accounts/' + acct.id + '/transactions?filter[status]=SETTLED&filter[since]=' + encodeURIComponent(since) + '&filter[until]=' + encodeURIComponent(until) + '&page[size]=100';
-        const acctTxns = await upGetAll(path, token);
-        txns = txns.concat(acctTxns);
-      }
-    }
-
-    // FIX 3: Filter transactions — outgoing only, with smart exceptions
-    const filtered = txns.filter(function(t) {
-      var amt = parseFloat(t.attributes.amount.value);
-      var desc = (t.attributes.description || '').toLowerCase();
-
-      // Always exclude inter-account transfers (between own Up accounts)
-      var isTransfer = t.relationships && t.relationships.transferAccount &&
-                       t.relationships.transferAccount.data;
-      if (isTransfer) return false;
-
-      // Debits (money out) — always include
-      if (amt < 0) return true;
-
-      // Credits (money in) — only include if from a third party (e.g. mate paying you back)
-      if (amt > 0) {
-        // Exclude internal patterns: interest, salary, wages, round-ups, covers, forwards
-        var internalPatterns = ['interest', 'salary', 'wages', 'pay', 'round up', 'cover',
-          'forward', 'transfer', 'bonus', 'rebate', 'cashback', 'refund'];
-        for (var p = 0; p < internalPatterns.length; p++) {
-          if (desc.indexOf(internalPatterns[p]) !== -1) return false;
-        }
-        // Also exclude if description matches either account holder name
-        if (desc.indexOf('blayne') !== -1 || desc.indexOf('sophie') !== -1) return false;
-        // Include — this looks like a third party paying you back (e.g. mates splitting dinner)
-        return true;
-      }
-
-      return false;
-    });
+    const rawTxns = await fetchUpRawTransactions(owner, since, until);
+    const filtered = filterUpTransactions(rawTxns);
 
     if (filtered.length === 0) {
-      setStatus('No qualifying transactions found for ' + MONTHS_FULL[mo] + ' ' + yr + '. (Transfers between accounts and incoming payments are excluded.)');
+      setStatus('No qualifying transactions found for ' + MONTHS_FULL[mo] + ' ' + yr + '.');
       btn.disabled = false; btn.textContent = 'Fetch from Up Bank';
       return;
     }
 
     setStatus('Categorising ' + filtered.length + ' transactions...', true);
-
-    const monthLabel = MONTHS_FULL[mo] + ' ' + yr;
-
-    // Rule-based categorisation — instant, free, no API call needed
-    const parsed = filtered.map(function(t) {
-      var date = t.attributes.createdAt.slice(0, 10);
-      var desc = t.attributes.description;
-      var amt  = Math.abs(parseFloat(t.attributes.amount.value));
-      var cat  = categorizeMerchant(desc);
-      // For credits (someone paying you back), mark amount as negative to show as reimbursement
-      var isCredit = parseFloat(t.attributes.amount.value) > 0;
-      return { date: date, desc: desc + (isCredit ? ' (reimbursement)' : ''), cat: cat, owner: owner, amount: isCredit ? -amt : amt };
-    });
+    const parsed = parseUpTransactions(filtered, owner);
 
     statusEl.style.display = 'none';
     btn.disabled = false;
     btn.textContent = 'Fetch from Up Bank';
 
     importResults = parsed;
-    renderImportResults(parsed, monthLabel);
+    renderImportResults(parsed, MONTHS_FULL[mo] + ' ' + yr);
     document.getElementById('imp-month-sel').value = monthSel.value;
 
   } catch(e) {
@@ -3195,6 +3216,225 @@ async function fetchUpTransactions() {
     btn.disabled = false;
     btn.textContent = 'Fetch from Up Bank';
   }
+}
+
+// ════════════════ AUTO-SYNC ════════════════
+
+let autoSyncPending = []; // Transactions waiting for user to categorise unknowns
+let autoSyncKnown = [];   // Transactions that were auto-categorised
+
+function getLastSyncTime() {
+  try { return parseInt(localStorage.getItem('hb_last_up_sync') || '0'); } catch(e) { return 0; }
+}
+function setLastSyncTime() {
+  localStorage.setItem('hb_last_up_sync', String(Date.now()));
+}
+
+function shouldAutoSync() {
+  // Only sync if Blayne's token exists
+  if (!UP_TOKENS['Blayne']) return false;
+  var last = getLastSyncTime();
+  if (last === 0) return true; // Never synced
+  var hoursSince = (Date.now() - last) / (1000 * 60 * 60);
+  return hoursSince >= AUTOSYNC_INTERVAL_HOURS;
+}
+
+async function runAutoSync() {
+  if (!shouldAutoSync()) return;
+
+  var banner = document.getElementById('autosync-banner');
+  var progress = document.getElementById('autosync-progress');
+  var progressText = document.getElementById('autosync-progress-text');
+  var doneEl = document.getElementById('autosync-done');
+  var reviewEl = document.getElementById('autosync-review');
+  var errorEl = document.getElementById('autosync-error');
+
+  banner.style.display = 'block';
+  progress.style.display = 'block';
+  doneEl.style.display = 'none';
+  reviewEl.style.display = 'none';
+  errorEl.style.display = 'none';
+
+  var now = new Date();
+  var yr = now.getFullYear();
+  var mo = now.getMonth();
+  // Fetch from start of month to now
+  var since = new Date(yr, mo, 1).toISOString();
+  var until = now.toISOString();
+
+  var allNew = [];
+  var accountsToSync = [];
+
+  // Build list of accounts to sync
+  if (UP_TOKENS['Blayne']) accountsToSync.push({ owner: 'Blayne', token: UP_TOKENS['Blayne'] });
+  if (UP_TOKENS['Shared']) accountsToSync.push({ owner: 'Shared', token: UP_TOKENS['Shared'] });
+  if (UP_TOKENS['Sophie']) accountsToSync.push({ owner: 'Sophie', token: UP_TOKENS['Sophie'] });
+
+  try {
+    for (var a = 0; a < accountsToSync.length; a++) {
+      var acctInfo = accountsToSync[a];
+      progressText.textContent = 'Syncing ' + acctInfo.owner + '\'s account...';
+      var rawTxns = await fetchUpRawTransactions(acctInfo.owner, since, until);
+      var filtered = filterUpTransactions(rawTxns);
+      var parsed = parseUpTransactions(filtered, acctInfo.owner);
+      allNew = allNew.concat(parsed);
+    }
+
+    // Deduplicate — remove transactions already in tracker for this month
+    var mk = getMonthKey(yr, mo);
+    var existing = state.transactions[mk] || [];
+    var existingKeys = {};
+    existing.forEach(function(t) {
+      // Create a key from date + desc + amount to detect duplicates
+      existingKeys[t.date + '|' + t.desc + '|' + t.amount] = true;
+    });
+
+    var brandNew = allNew.filter(function(t) {
+      var key = t.date + '|' + t.desc + '|' + t.amount;
+      return !existingKeys[key];
+    });
+
+    if (brandNew.length === 0) {
+      progress.style.display = 'none';
+      doneEl.style.display = 'block';
+      document.getElementById('autosync-done-text').textContent = '✓ Up Bank is up to date — no new transactions.';
+      setLastSyncTime();
+      return;
+    }
+
+    // Split into known (auto-categorised) and unknown (needs user input)
+    autoSyncKnown = [];
+    autoSyncPending = [];
+
+    brandNew.forEach(function(t) {
+      if (t.cat === 'Other') {
+        // Check if it's truly unknown — "Other" is the default fallback
+        // If merchant rules matched something specific, it wouldn't be "Other"
+        autoSyncPending.push(t);
+      } else {
+        autoSyncKnown.push(t);
+      }
+    });
+
+    progress.style.display = 'none';
+
+    if (autoSyncPending.length === 0) {
+      // All known — auto-save and show success
+      saveAutoSyncTransactions(autoSyncKnown);
+      doneEl.style.display = 'block';
+      document.getElementById('autosync-done-text').textContent = '✓ Synced ' + autoSyncKnown.length + ' new transaction' + (autoSyncKnown.length === 1 ? '' : 's') + ' from Up Bank.';
+      setLastSyncTime();
+      renderDashboard();
+      return;
+    }
+
+    // Some unknown — save the known ones and show review for unknowns
+    if (autoSyncKnown.length > 0) {
+      saveAutoSyncTransactions(autoSyncKnown);
+    }
+
+    // Show review UI for unknowns
+    reviewEl.style.display = 'block';
+    renderAutoSyncReview();
+
+  } catch(e) {
+    progress.style.display = 'none';
+    errorEl.style.display = 'block';
+    document.getElementById('autosync-error-text').textContent = 'Auto-sync error: ' + e.message;
+  }
+}
+
+function saveAutoSyncTransactions(txns) {
+  var now = new Date();
+  var mk = getMonthKey(now.getFullYear(), now.getMonth());
+  if (!state.transactions[mk]) state.transactions[mk] = [];
+  txns.forEach(function(t) {
+    state.transactions[mk].push({
+      date: t.date,
+      desc: t.desc,
+      cat: t.cat,
+      owner: t.owner,
+      amount: t.amount
+    });
+  });
+  saveState();
+}
+
+function renderAutoSyncReview() {
+  var CATS = ['Groceries','Dining Out','Uber Eats','Alcohol / Pub','Fuel','Transport',
+    'Medical','Personal Care','Clothing','Entertainment','Personal Spending',
+    'Home Maintenance','Utilities','Subscriptions','Other'];
+
+  var html = '';
+  autoSyncPending.forEach(function(t, i) {
+    var catOpts = CATS.map(function(c) {
+      return '<option' + (c === t.cat ? ' selected' : '') + '>' + c + '</option>';
+    }).join('');
+
+    html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">' +
+      '<div style="flex:1;min-width:150px;">' +
+        '<div style="font-size:13px;font-weight:500;">' + t.desc + '</div>' +
+        '<div style="font-size:11px;color:var(--text3);">' + t.date + ' · ' + t.owner + ' · $' + Math.abs(t.amount).toFixed(2) + '</div>' +
+      '</div>' +
+      '<select id="autosync-cat-' + i + '" style="width:160px;font-size:12px;padding:6px 8px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);">' + catOpts + '</select>' +
+      '<label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text3);cursor:pointer;white-space:nowrap;">' +
+        '<input type="checkbox" id="autosync-remember-' + i + '" checked style="accent-color:var(--accent);"> Remember' +
+      '</label>' +
+    '</div>';
+  });
+
+  var knownCount = autoSyncKnown.length;
+  var prefix = knownCount > 0
+    ? '<div style="font-size:12px;color:var(--green);margin-bottom:8px;">✓ ' + knownCount + ' known transaction' + (knownCount === 1 ? '' : 's') + ' already saved.</div>'
+    : '';
+
+  document.getElementById('autosync-review-list').innerHTML = prefix + html;
+}
+
+function confirmAutoSync() {
+  var CATS = ['Groceries','Dining Out','Uber Eats','Alcohol / Pub','Fuel','Transport',
+    'Medical','Personal Care','Clothing','Entertainment','Personal Spending',
+    'Home Maintenance','Utilities','Subscriptions','Other'];
+
+  autoSyncPending.forEach(function(t, i) {
+    var sel = document.getElementById('autosync-cat-' + i);
+    var remember = document.getElementById('autosync-remember-' + i);
+    if (sel) t.cat = sel.value;
+
+    // Save merchant rule if "Remember" is checked
+    if (remember && remember.checked && sel && sel.value !== 'Other') {
+      var pattern = t.desc.replace(/ \(reimbursement\)$/, '').toLowerCase().trim();
+      if (pattern.length > 2) {
+        if (!state.merchantRules) state.merchantRules = [];
+        // Don't add duplicate rules
+        var exists = state.merchantRules.some(function(r) { return r.pattern.toLowerCase() === pattern; });
+        if (!exists) {
+          state.merchantRules.push({ pattern: pattern, category: sel.value });
+        }
+      }
+    }
+  });
+
+  // Save the pending transactions
+  saveAutoSyncTransactions(autoSyncPending);
+  setLastSyncTime();
+
+  // Update UI
+  var total = autoSyncKnown.length + autoSyncPending.length;
+  document.getElementById('autosync-review').style.display = 'none';
+  document.getElementById('autosync-done').style.display = 'block';
+  document.getElementById('autosync-done-text').textContent = '✓ Synced ' + total + ' new transaction' + (total === 1 ? '' : 's') + ' from Up Bank.';
+
+  autoSyncPending = [];
+  autoSyncKnown = [];
+  saveState();
+  renderDashboard();
+  if (typeof renderMerchantRules === 'function') renderMerchantRules();
+}
+
+function dismissSyncBanner() {
+  document.getElementById('autosync-banner').style.display = 'none';
+  setLastSyncTime(); // Don't nag again this session
 }
 
 
@@ -3339,6 +3579,9 @@ async function initApp() {
   await loadFromSupabase();
   renderDashboard();
 
+  // Auto-sync with Up Bank if enough time has passed
+  setTimeout(function() { runAutoSync().catch(function(e) { console.warn('Auto-sync failed:', e); }); }, 1500);
+
   if (window._pollInterval) clearInterval(window._pollInterval);
   window._pollInterval = setInterval(async () => {
     try {
@@ -3375,6 +3618,7 @@ async function initApp() {
     showApp();
     await loadFromSupabase().catch(() => {});
     renderDashboard();
+    setTimeout(function() { runAutoSync().catch(function(e) { console.warn('Auto-sync failed:', e); }); }, 1500);
     return;
   }
   showLoginScreen();
