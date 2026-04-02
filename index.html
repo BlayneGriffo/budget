@@ -820,11 +820,11 @@ Or copy straight from your banking app — any format is fine."
         <div class="card-title">fetch transactions from Up</div>
 
         <div class="form-row" style="margin-bottom:12px;">
-          <label>Account owner</label>
+          <label>Account</label>
           <select id="up-owner" style="width:100%;">
-            <option value="Blayne">Blayne</option>
-            <option value="Sophie">Sophie</option>
-            <option value="Shared">Shared</option>
+            <option value="Blayne">Blayne — Personal (Up)</option>
+            <option value="Shared">2UP — Joint Account</option>
+            <option value="Sophie">Sophie — Personal (Up)</option>
           </select>
         </div>
         <div class="form-row" style="margin-bottom:16px;">
@@ -846,7 +846,8 @@ Or copy straight from your banking app — any format is fine."
           <div style="margin-bottom:8px;">2. Click Fetch — pulls all settled debits from Up automatically</div>
           <div style="margin-bottom:8px;">3. AI categorises each transaction against your budget</div>
           <div style="margin-bottom:8px;">4. Review and confirm — same as manual import</div>
-          <div style="margin-top:12px;padding:10px 12px;background:var(--green-bg);border-radius:8px;font-size:12px;color:var(--green);">✓ Connected to Blayne's Up account</div>
+          <div style="margin-top:12px;padding:10px 12px;background:var(--green-bg);border-radius:8px;font-size:12px;color:var(--green);">✓ Connected to Blayne's Up account (personal + 2UP)</div>
+          <div style="margin-top:6px;padding:10px 12px;background:#fef3cd;border-radius:8px;font-size:12px;color:#856404;">⚠ Sophie's token not yet configured</div>
         </div>
       </div>
     </div>
@@ -3022,7 +3023,7 @@ document.addEventListener('DOMContentLoaded', function() {
 const UP_TOKENS = {
   'Blayne':  'up:yeah:shUan5cCPYWRnlstTzSunX5EXjM4cmlqFJBZmH842CFBD4HFqvaZwSeBA2gb4xYBJZZ64cj3XyA8vtV0h8svQ0avqGsEhRhtLd6ncfcNAjtpGO6dCM9winUKD31yBYB8',
   'Sophie':  '',   // Add Sophie's token here once she generates it
-  'Shared':  'up:yeah:shUan5cCPYWRnlstTzSunX5EXjM4cmlqFJBZmH842CFBD4HFqvaZwSeBA2gb4xYBJZZ64cj3XyA8vtV0h8svQ0avqGsEhRhtLd6ncfcNAjtpGO6dCM9winUKD31yBYB8',  // 2Up uses Blayne's token — 2Up accounts appear in both members' transaction lists
+  'Shared':  'up:yeah:shUan5cCPYWRnlstTzSunX5EXjM4cmlqFJBZmH842CFBD4HFqvaZwSeBA2gb4xYBJZZ64cj3XyA8vtV0h8svQ0avqGsEhRhtLd6ncfcNAjtpGO6dCM9winUKD31yBYB8',  // 2Up uses Blayne's token
 };
 
 // Proxy URL — routes through Netlify Function to avoid CORS
@@ -3078,10 +3079,15 @@ async function fetchUpTransactions() {
     const since = new Date(yr, mo, 1).toISOString();
     const until = new Date(yr, mo + 1, 0, 23, 59, 59).toISOString();
     const owner = document.getElementById('up-owner').value;
-    const token = UP_TOKENS[owner] || UP_TOKENS['Blayne'];
 
+    // FIX 1: Sophie must have her own token — don't fall back to Blayne's
+    const token = UP_TOKENS[owner];
     if (!token) {
-      setStatus('No Up Bank token for ' + owner + '. Add their token in the app code.');
+      if (owner === 'Sophie') {
+        statusEl.innerHTML = '<span style="font-size:13px;color:#856404;">Sophie\'s Up Bank token is not configured yet. She needs to generate her own token from the Up app → Profile → Data sharing → Personal Access Token. Then add it to the UP_TOKENS.Sophie field in the code.</span>';
+      } else {
+        setStatus('No Up Bank token for ' + owner + '. Add their token in the app code.');
+      }
       btn.disabled = false; btn.textContent = 'Fetch from Up Bank';
       return;
     }
@@ -3091,7 +3097,7 @@ async function fetchUpTransactions() {
     let txns = [];
 
     if (owner === 'Shared') {
-      // 2Up joint account — find joint accounts then fetch their transactions
+      // FIX 2a: 2Up joint account — fetch ONLY from JOINT ownership accounts
       setStatus('Finding 2Up joint account...', true);
       const accountsData = await upGet('/accounts?filter[ownershipType]=JOINT', token);
       const jointAccounts = (accountsData.data || []);
@@ -3107,32 +3113,73 @@ async function fetchUpTransactions() {
         txns = txns.concat(acctTxns);
       }
     } else {
-      // Personal account transactions
-      setStatus('Loading transactions from Up...', true);
-      const path = '/transactions?filter[status]=SETTLED&filter[since]=' + encodeURIComponent(since) + '&filter[until]=' + encodeURIComponent(until) + '&page[size]=100';
-      txns = await upGetAll(path, token);
+      // FIX 2b: Personal accounts — fetch ONLY from INDIVIDUAL ownership accounts
+      // Previously this used the global /transactions endpoint which mixed personal + 2UP
+      setStatus('Finding personal accounts...', true);
+      const accountsData = await upGet('/accounts?filter[ownershipType]=INDIVIDUAL', token);
+      const personalAccounts = (accountsData.data || []);
+      if (personalAccounts.length === 0) {
+        setStatus('No personal Up accounts found for ' + owner + '.');
+        btn.disabled = false; btn.textContent = 'Fetch from Up Bank';
+        return;
+      }
+      setStatus('Loading ' + owner + '\'s personal transactions...', true);
+      for (const acct of personalAccounts) {
+        const path = '/accounts/' + acct.id + '/transactions?filter[status]=SETTLED&filter[since]=' + encodeURIComponent(since) + '&filter[until]=' + encodeURIComponent(until) + '&page[size]=100';
+        const acctTxns = await upGetAll(path, token);
+        txns = txns.concat(acctTxns);
+      }
     }
 
-    // Debits only (negative amounts)
-    const debits = txns.filter(t => parseFloat(t.attributes.amount.value) < 0);
+    // FIX 3: Filter transactions — outgoing only, with smart exceptions
+    const filtered = txns.filter(function(t) {
+      var amt = parseFloat(t.attributes.amount.value);
+      var desc = (t.attributes.description || '').toLowerCase();
 
-    if (debits.length === 0) {
-      setStatus('No debit transactions found for ' + MONTHS_FULL[mo] + ' ' + yr + '.');
+      // Always exclude inter-account transfers (between own Up accounts)
+      var isTransfer = t.relationships && t.relationships.transferAccount &&
+                       t.relationships.transferAccount.data;
+      if (isTransfer) return false;
+
+      // Debits (money out) — always include
+      if (amt < 0) return true;
+
+      // Credits (money in) — only include if from a third party (e.g. mate paying you back)
+      if (amt > 0) {
+        // Exclude internal patterns: interest, salary, wages, round-ups, covers, forwards
+        var internalPatterns = ['interest', 'salary', 'wages', 'pay', 'round up', 'cover',
+          'forward', 'transfer', 'bonus', 'rebate', 'cashback', 'refund'];
+        for (var p = 0; p < internalPatterns.length; p++) {
+          if (desc.indexOf(internalPatterns[p]) !== -1) return false;
+        }
+        // Also exclude if description matches either account holder name
+        if (desc.indexOf('blayne') !== -1 || desc.indexOf('sophie') !== -1) return false;
+        // Include — this looks like a third party paying you back (e.g. mates splitting dinner)
+        return true;
+      }
+
+      return false;
+    });
+
+    if (filtered.length === 0) {
+      setStatus('No qualifying transactions found for ' + MONTHS_FULL[mo] + ' ' + yr + '. (Transfers between accounts and incoming payments are excluded.)');
       btn.disabled = false; btn.textContent = 'Fetch from Up Bank';
       return;
     }
 
-    setStatus('Categorising ' + debits.length + ' transactions...', true);
+    setStatus('Categorising ' + filtered.length + ' transactions...', true);
 
     const monthLabel = MONTHS_FULL[mo] + ' ' + yr;
 
     // Rule-based categorisation — instant, free, no API call needed
-    const parsed = debits.map(function(t) {
-      const date = t.attributes.createdAt.slice(0, 10);
-      const desc = t.attributes.description;
-      const amt  = Math.abs(parseFloat(t.attributes.amount.value));
-      const cat  = categorizeMerchant(desc);
-      return { date: date, desc: desc, cat: cat, owner: owner, amount: amt };
+    const parsed = filtered.map(function(t) {
+      var date = t.attributes.createdAt.slice(0, 10);
+      var desc = t.attributes.description;
+      var amt  = Math.abs(parseFloat(t.attributes.amount.value));
+      var cat  = categorizeMerchant(desc);
+      // For credits (someone paying you back), mark amount as negative to show as reimbursement
+      var isCredit = parseFloat(t.attributes.amount.value) > 0;
+      return { date: date, desc: desc + (isCredit ? ' (reimbursement)' : ''), cat: cat, owner: owner, amount: isCredit ? -amt : amt };
     });
 
     statusEl.style.display = 'none';
