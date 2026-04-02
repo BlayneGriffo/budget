@@ -45,7 +45,6 @@
     display: flex; align-items: center; justify-content: center;
     z-index: 9999; padding: 24px;
   }
-  #login-screen.hidden { display: none; }
   .login-card {
     background: var(--surface); border: 1px solid var(--border);
     border-radius: 20px; padding: 40px 36px; width: 100%;
@@ -65,7 +64,6 @@
   .login-error { font-size: 13px; color: var(--red); margin-top: 10px; text-align: center; min-height: 20px; }
   .login-footer { font-size: 12px; color: var(--text3); margin-top: 20px; }
   #app-shell { display: none; }
-  #app-shell.visible { display: block; }
 
   /* NAV */
   nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; gap: 0; position: sticky; top: 0; z-index: 100; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
@@ -78,7 +76,6 @@
 
   /* LAYOUT */
   .page { display: none; padding: 28px 24px; max-width: 1100px; margin: 0 auto; }
-  @media (max-width: 500px) { .page { padding: 16px 14px; } }
   .page.active { display: block; }
 
   /* CARDS */
@@ -127,7 +124,6 @@
     border-radius: 6px; padding: 7px 10px; width: 100%;
     outline: none; transition: border 0.15s;
   }
-  @media (min-width: 600px) { input[type=text], input[type=number], select { font-size: 13px; } }
   input[type=text]:focus, input[type=number]:focus, select:focus { border-color: var(--accent); }
   input[type=range] { width: 100%; accent-color: var(--accent); }
   label { font-size: 12px; color: var(--text2); display: block; margin-bottom: 4px; font-weight: 500; }
@@ -205,43 +201,59 @@
   .modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
   .form-row { margin-bottom: 14px; }
 
+
+  /* ══════════════ MOBILE ══════════════ */
+  #mobile-nav {
+    display: none; position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--surface); border-top: 1px solid var(--border);
+    z-index: 150; padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .mobile-nav-inner { display: flex; justify-content: space-around; }
+  .mnb {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; padding: 8px 2px 6px; border: none;
+    background: none; cursor: pointer; color: var(--text3);
+    font-family: var(--font); font-size: 9px; font-weight: 500; gap: 2px;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation; min-height: 54px;
+  }
+  .mnb.active { color: var(--accent); }
+  .mnb .ico { font-size: 20px; line-height: 1; }
+
   @media (max-width: 700px) {
     .grid-2, .grid-3 { grid-template-columns: 1fr; }
-    .metrics { grid-template-columns: repeat(2, 1fr); }
-    nav { overflow-x: auto; }
+    .metrics { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .page { padding: 14px 12px 80px; }
+    nav { padding: 0 12px; }
+    .nav-tabs { display: none; }
+    .nav-brand { font-size: 13px; margin-right: 8px; }
+    #mobile-nav { display: block; }
+    .card { padding: 14px 12px; }
+    .metric { padding: 12px 12px; }
+    .metric-value { font-size: 19px; }
+    .metric-label { font-size: 10px; }
+    .modal { width: 100%; max-width: 100%; border-radius: 20px 20px 0 0; position: fixed; bottom: 0; left: 0; right: 0; max-height: 88vh; overflow-y: auto; }
+    .modal-overlay { align-items: flex-end; padding: 0; }
+    .section-title { font-size: 11px; margin-top: 18px; }
+    .slider-row { flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+    .slider-lbl { min-width: 100%; font-size: 12px; margin-bottom: 0; }
+    .slider-val { margin-left: auto; }
+    .tbl { font-size: 12px; }
+    .tbl th, .tbl td { padding: 7px 7px; }
+    .fc-table th, .fc-table td { padding: 7px 6px; font-size: 11px; }
     .entry-row { grid-template-columns: 1fr 100px; }
     .entry-row .hide-mobile { display: none; }
+  }
+  @media (min-width: 701px) {
+    input[type=text], input[type=number], select { font-size: 13px; }
   }
 </style>
 </head>
 <body>
 
-<!-- LOGIN SCREEN -->
-<div id="login-screen">
-  <div class="login-card">
-    <div class="login-logo">🏠</div>
-    <div class="login-title">Household Budget</div>
-    <div class="login-subtitle">Sign in to access your budget</div>
-    <div class="login-form">
-      <div class="form-row">
-        <label>Email</label>
-        <input type="email" id="login-email" placeholder="you@example.com" autocomplete="email" onkeydown="if(event.key==='Enter')doLogin()">
-      </div>
-      <div class="form-row">
-        <label>Password</label>
-        <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
-      </div>
-      <button class="login-btn" id="login-btn" onclick="doLogin()">Sign in</button>
-      <div class="login-error" id="login-error"></div>
-    </div>
-    <div class="login-footer">Only Blayne &amp; Sophie have access</div>
-  </div>
-</div>
-
 <!-- APP SHELL (hidden until logged in) -->
 <div id="app-shell">
 
-<!-- ═══════════════════════════════════════════════ LOGIN ══ -->
+<!-- LOGIN SCREEN - shown before auth -->
 <div id="login-screen" style="position:fixed;inset:0;background:var(--bg);z-index:999;display:flex;align-items:center;justify-content:center;padding:24px;">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:40px 36px;width:100%;max-width:380px;">
     <div style="text-align:center;margin-bottom:32px;">
@@ -362,10 +374,10 @@
   <div class="grid-2">
     <div class="card">
       <div class="card-title">variable expenses — actuals vs budget</div>
-      <table class="tbl" id="tracker-var-table">
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;"><table class="tbl" id="tracker-var-table">
         <thead><tr><th>category</th><th class="num">budget</th><th class="num">actual ✎</th><th class="num">remaining</th><th>status</th></tr></thead>
         <tbody></tbody>
-      </table>
+      </table></div>
     </div>
     <div class="card">
       <div class="card-title">fixed expenses this month</div>
@@ -441,7 +453,7 @@
 
   <div class="card">
     <div class="card-title">month-by-month forecast — <span id="forecast-year-label"></span></div>
-    <div style="overflow-x:auto;">
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
       <table class="fc-table" id="forecast-table"></table>
     </div>
   </div>
@@ -478,7 +490,7 @@
 
   <div class="card">
     <div class="card-title">rate sensitivity table</div>
-    <table class="tbl" id="mort-table"></table>
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;"><table class="tbl" id="mort-table"></table></div>
   </div>
 </div>
 
@@ -623,48 +635,77 @@
 
   <div class="grid-2 mb-16">
 
-    <!-- Upload card -->
+    <!-- Input card with Upload / Paste tabs -->
     <div class="card">
-      <div class="card-title">1 — upload statement</div>
+      <div class="card-title">1 — add your statement</div>
 
-      <div id="imp-drop-zone" onclick="document.getElementById('imp-file-input').click()" style="border:2px dashed var(--border2);border-radius:10px;padding:32px 20px;text-align:center;cursor:pointer;transition:border 0.2s;margin-bottom:16px;">
-        <div style="font-size:28px;margin-bottom:8px;">📄</div>
-        <div style="font-size:14px;font-weight:500;color:var(--text2);">Drop file here or click to browse</div>
-        <div style="font-size:12px;color:var(--text3);margin-top:4px;">Screenshots (PNG, JPG), PDFs, or CSV/text exports</div>
-      </div>
-      <input type="file" id="imp-file-input" accept="image/*,.pdf,.csv,.txt,.xlsx" style="display:none;" onchange="handleImportFile(this)">
-
-      <div class="form-row" style="margin-bottom:12px;">
-        <label>Which account / person?</label>
-        <select id="imp-owner" style="width:100%;">
-          <option value="Blayne">Blayne's account</option>
-          <option value="Sophie">Sophie's account</option>
-          <option value="Shared">Shared / joint account</option>
-        </select>
+      <!-- Input mode toggle -->
+      <div style="display:flex;border:1px solid var(--border2);border-radius:8px;overflow:hidden;margin-bottom:16px;">
+        <button id="imp-tab-upload" onclick="setImportTab('upload')" style="flex:1;font-family:var(--font);font-size:13px;font-weight:500;padding:9px 14px;border:none;cursor:pointer;background:var(--accent);color:#fff;transition:all 0.15s;">📎 Upload file</button>
+        <button id="imp-tab-paste" onclick="setImportTab('paste')" style="flex:1;font-family:var(--font);font-size:13px;font-weight:500;padding:9px 14px;border:none;border-left:1px solid var(--border2);cursor:pointer;background:var(--surface);color:var(--text2);transition:all 0.15s;">📋 Paste text</button>
       </div>
 
-      <div class="form-row" style="margin-bottom:12px;">
-        <label>Statement month</label>
-        <select id="imp-month-sel" style="width:100%;"></select>
+      <!-- Upload panel -->
+      <div id="imp-panel-upload">
+        <div id="imp-drop-zone" onclick="document.getElementById('imp-file-input').click()" style="border:2px dashed var(--border2);border-radius:10px;padding:28px 20px;text-align:center;cursor:pointer;transition:border 0.2s;margin-bottom:16px;">
+          <div style="font-size:28px;margin-bottom:8px;">📄</div>
+          <div style="font-size:14px;font-weight:500;color:var(--text2);">Drop file here or click to browse</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:4px;">Screenshots (PNG, JPG), PDFs, or CSV/text exports</div>
+        </div>
+        <input type="file" id="imp-file-input" accept="image/*,.pdf,.csv,.txt,.xlsx" style="display:none;" onchange="handleImportFile(this)">
+        <div id="imp-file-preview" style="display:none;padding:10px 12px;background:var(--surface2);border-radius:8px;font-size:13px;color:var(--text2);margin-bottom:12px;">
+          <span id="imp-file-name"></span>
+        </div>
       </div>
 
-      <div id="imp-file-preview" style="display:none;padding:10px 12px;background:var(--surface2);border-radius:8px;font-size:13px;color:var(--text2);margin-bottom:12px;">
-        <span id="imp-file-name"></span>
+      <!-- Paste panel -->
+      <div id="imp-panel-paste" style="display:none;">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:8px;line-height:1.6;">
+          Copy your transactions from your banking app, internet banking, or anywhere else and paste them below. Any format works — the AI will figure it out.
+        </div>
+        <textarea id="imp-paste-text"
+          placeholder="Paste your bank transactions here...
+
+For example:
+15 Mar 2026  WOOLWORTHS 1234          -$84.50
+15 Mar 2026  SHELL CALTEX FUEL        -$95.00
+16 Mar 2026  UBER EATS                -$32.80
+16 Mar 2026  BWS LIQUOR               -$45.00
+
+Or copy straight from your banking app — any format is fine."
+          oninput="handlePasteInput(this)"
+          style="width:100%;min-height:180px;padding:12px;border:1px solid var(--border2);border-radius:8px;font-family:var(--mono);font-size:13px;color:var(--text);background:var(--surface);resize:vertical;line-height:1.6;"></textarea>
+        <div id="imp-paste-preview" style="display:none;margin-top:8px;padding:8px 12px;background:var(--surface2);border-radius:6px;font-size:12px;color:var(--green);">✓ <span id="imp-paste-chars">0</span> characters ready to analyse</div>
       </div>
 
-      <button id="imp-analyse-btn" class="btn btn-primary" onclick="analyseImport()" style="width:100%;display:none;">
-        Analyse with AI →
-      </button>
+      <!-- Shared fields -->
+      <div style="margin-top:14px;">
+        <div class="form-row" style="margin-bottom:12px;">
+          <label>Which account / person?</label>
+          <select id="imp-owner" style="width:100%;">
+            <option value="Blayne">Blayne's account</option>
+            <option value="Sophie">Sophie's account</option>
+            <option value="Shared">Shared / joint account</option>
+          </select>
+        </div>
+        <div class="form-row" style="margin-bottom:14px;">
+          <label>Statement month</label>
+          <select id="imp-month-sel" style="width:100%;"></select>
+        </div>
+        <button id="imp-analyse-btn" class="btn btn-primary" onclick="analyseImport()" style="width:100%;display:none;">
+          Analyse with AI →
+        </button>
+      </div>
     </div>
 
-    <!-- Instructions card -->
+    <!-- Tips card -->
     <div class="card">
       <div class="card-title">tips for best results</div>
       <div style="font-size:13px;color:var(--text2);line-height:1.7;">
-        <div style="margin-bottom:10px;"><strong style="color:var(--text);">Screenshots</strong> — take a full screenshot of your bank app transaction list. St.George, CommBank, ANZ, NAB all work well. Make sure dates and amounts are visible.</div>
-        <div style="margin-bottom:10px;"><strong style="color:var(--text);">CSV exports</strong> — most banks let you export transactions as CSV from internet banking. Download and upload directly — no editing needed.</div>
-        <div style="margin-bottom:10px;"><strong style="color:var(--text);">What gets imported</strong> — AI identifies each debit transaction, maps it to one of your budget categories (Groceries, Fuel, Dining Out, etc.), and assigns the owner you selected.</div>
-        <div><strong style="color:var(--text);">Review before saving</strong> — you'll see every transaction with its suggested category. You can change any category before confirming.</div>
+        <div style="margin-bottom:10px;"><strong style="color:var(--text);">Upload</strong> — screenshot your bank app transaction list, or export a CSV from internet banking and upload it directly.</div>
+        <div style="margin-bottom:10px;"><strong style="color:var(--text);">Paste</strong> — copy transactions from your banking app or internet banking and paste them in. Any format works: the AI reads date, merchant and amount.</div>
+        <div style="margin-bottom:10px;"><strong style="color:var(--text);">What gets imported</strong> — AI picks out each debit, maps it to your budget categories, and assigns the owner you selected.</div>
+        <div><strong style="color:var(--text);">Review before saving</strong> — every transaction shows with its suggested category. Change anything before confirming.</div>
       </div>
     </div>
   </div>
@@ -709,6 +750,55 @@
 
       <div id="imp-summary" style="margin-top:14px;padding:12px 16px;background:var(--surface2);border-radius:8px;font-size:13px;color:var(--text2);"></div>
     </div>
+  </div>
+
+  <!-- UP BANK SECTION -->
+  <div style="margin-top:24px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+      <div style="width:32px;height:32px;background:#ff6b35;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🆙</div>
+      <div>
+        <div style="font-size:15px;font-weight:600;color:var(--text);">Up Bank — automatic sync</div>
+        <div style="font-size:12px;color:var(--text3);">Pulls your transactions directly. No screenshots needed.</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">fetch transactions from Up</div>
+
+        <div class="form-row" style="margin-bottom:12px;">
+          <label>Account owner</label>
+          <select id="up-owner" style="width:100%;">
+            <option value="Blayne">Blayne</option>
+            <option value="Sophie">Sophie</option>
+            <option value="Shared">Shared</option>
+          </select>
+        </div>
+        <div class="form-row" style="margin-bottom:16px;">
+          <label>Month to import</label>
+          <select id="up-month-sel" style="width:100%;"></select>
+        </div>
+
+        <button id="up-fetch-btn" class="btn btn-primary" onclick="fetchUpTransactions()" style="width:100%;">
+          Fetch from Up Bank
+        </button>
+
+        <div id="up-status" style="display:none;margin-top:12px;"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">how it works</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.7;">
+          <div style="margin-bottom:8px;">1. Select month and whose account</div>
+          <div style="margin-bottom:8px;">2. Click Fetch — pulls all settled debits from Up automatically</div>
+          <div style="margin-bottom:8px;">3. AI categorises each transaction against your budget</div>
+          <div style="margin-bottom:8px;">4. Review and confirm — same as manual import</div>
+          <div style="margin-top:12px;padding:10px 12px;background:var(--green-bg);border-radius:8px;font-size:12px;color:var(--green);">✓ Connected to Blayne's Up account</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="up-results" style="display:none;"></div>
   </div>
 </div>
 
@@ -1001,25 +1091,31 @@ async function doLogin() {
 }
 
 function showApp() {
-  document.getElementById('login-screen').classList.add('hidden');
-  document.getElementById('app-shell').classList.add('visible');
+  const loginEl = document.getElementById('login-screen');
+  const appEl = document.getElementById('app-shell');
+  if (loginEl) loginEl.style.display = 'none';
+  if (appEl) appEl.style.display = 'block';
   // Update nav with user name
   const user = currentSession && currentSession.user;
   if (user) {
     const nameEl = document.getElementById('nav-user');
     if (nameEl) {
-      const name = user.user_metadata && user.user_metadata.name
+      const name = (user.user_metadata && user.user_metadata.name)
         ? user.user_metadata.name
         : user.email.split('@')[0];
       nameEl.textContent = name.charAt(0).toUpperCase() + name.slice(1);
     }
   }
+  // Trigger resize so Chart.js calculates canvas dimensions correctly
+  setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
 }
 
 function doLogout() {
   clearSession();
-  document.getElementById('login-screen').classList.remove('hidden');
-  document.getElementById('app-shell').classList.remove('visible');
+  const loginEl = document.getElementById('login-screen');
+  const appEl = document.getElementById('app-shell');
+  if (loginEl) loginEl.style.display = 'flex';
+  if (appEl) appEl.style.display = 'none';
   document.getElementById('login-email').value = '';
   document.getElementById('login-password').value = '';
   document.getElementById('login-error').textContent = '';
@@ -2100,17 +2196,74 @@ let importFileData = null;   // { type: 'image'|'text', data: base64|string, med
 let importResults  = [];     // parsed transactions from AI
 
 function populateImportMonthSel() {
-  const sel = document.getElementById('imp-month-sel');
-  if (!sel || sel.options.length > 0) return;
   const now2 = today();
-  for (let y = 2026; y <= 2027; y++) {
-    for (let m = 0; m < 12; m++) {
-      const opt = document.createElement('option');
-      opt.value = y + '-' + m;
-      opt.textContent = MONTHS[m] + ' ' + y;
-      if (y === now2.getFullYear() && m === now2.getMonth()) opt.selected = true;
-      sel.appendChild(opt);
+  ['imp-month-sel', 'up-month-sel'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel || sel.options.length > 0) return;
+    for (let y = 2026; y <= 2027; y++) {
+      for (let m = 0; m < 12; m++) {
+        const opt = document.createElement('option');
+        opt.value = y + '-' + m;
+        opt.textContent = MONTHS[m] + ' ' + y;
+        if (y === now2.getFullYear() && m === now2.getMonth()) opt.selected = true;
+        sel.appendChild(opt);
+      }
     }
+  });
+}
+
+function setImportTab(tab) {
+  const uploadPanel = document.getElementById('imp-panel-upload');
+  const pastePanel  = document.getElementById('imp-panel-paste');
+  const uploadBtn   = document.getElementById('imp-tab-upload');
+  const pasteBtn    = document.getElementById('imp-tab-paste');
+  if (!uploadPanel) return;
+
+  if (tab === 'upload') {
+    uploadPanel.style.display = 'block';
+    pastePanel.style.display  = 'none';
+    uploadBtn.style.background = 'var(--accent)'; uploadBtn.style.color = '#fff';
+    pasteBtn.style.background  = 'var(--surface)'; pasteBtn.style.color = 'var(--text2)';
+    // Clear paste data if switching away
+    importFileData = null;
+    const analyseBtn = document.getElementById('imp-analyse-btn');
+    const fp = document.getElementById('imp-file-preview');
+    if (fp && fp.style.display !== 'none') {
+      // Keep file if already loaded
+    } else {
+      if (analyseBtn) analyseBtn.style.display = 'none';
+    }
+  } else {
+    uploadPanel.style.display = 'none';
+    pastePanel.style.display  = 'block';
+    pasteBtn.style.background  = 'var(--accent)'; pasteBtn.style.color = '#fff';
+    uploadBtn.style.background = 'var(--surface)'; uploadBtn.style.color = 'var(--text2)';
+    // Re-check if there's paste content already
+    const ta = document.getElementById('imp-paste-text');
+    if (ta && ta.value.trim().length > 10) {
+      importFileData = { type: 'text', data: ta.value };
+      const analyseBtn = document.getElementById('imp-analyse-btn');
+      if (analyseBtn) analyseBtn.style.display = 'block';
+    }
+  }
+  document.getElementById('imp-results').style.display = 'none';
+}
+
+function handlePasteInput(textarea) {
+  const text = textarea.value.trim();
+  const preview = document.getElementById('imp-paste-preview');
+  const chars   = document.getElementById('imp-paste-chars');
+  const analyseBtn = document.getElementById('imp-analyse-btn');
+
+  if (text.length > 10) {
+    importFileData = { type: 'text', data: text };
+    if (preview) { preview.style.display = 'block'; }
+    if (chars)   { chars.textContent = text.length.toLocaleString(); }
+    if (analyseBtn) { analyseBtn.style.display = 'block'; }
+  } else {
+    importFileData = null;
+    if (preview) { preview.style.display = 'none'; }
+    if (analyseBtn) { analyseBtn.style.display = 'none'; }
   }
 }
 
@@ -2364,8 +2517,7 @@ function confirmImport() {
   document.getElementById('imp-spinner').style.display = 'none';
   document.getElementById('imp-status-text').textContent = '✓ ' + added + ' transactions saved to ' + MONTHS_FULL[mo] + ' ' + yr + '. Head to Monthly Tracker to review.';
 
-  importFileData = null;
-  importResults = [];
+  clearImportForm();
 
   // Refresh tracker + dashboard in background
   if (document.getElementById('page-tracker').classList.contains('active')) renderTracker();
@@ -2375,6 +2527,21 @@ function confirmImport() {
 function cancelImport() {
   document.getElementById('imp-results').style.display = 'none';
   importResults = [];
+}
+
+function clearImportForm() {
+  importFileData = null;
+  importResults = [];
+  const ta = document.getElementById('imp-paste-text');
+  if (ta) ta.value = '';
+  const pp = document.getElementById('imp-paste-preview');
+  if (pp) pp.style.display = 'none';
+  const fp = document.getElementById('imp-file-preview');
+  if (fp) fp.style.display = 'none';
+  const ab = document.getElementById('imp-analyse-btn');
+  if (ab) ab.style.display = 'none';
+  const fi = document.getElementById('imp-file-input');
+  if (fi) fi.value = '';
 }
 
 
@@ -2710,6 +2877,160 @@ document.addEventListener('DOMContentLoaded', function() {
   if (em) em.addEventListener('keydown', function(e) { if (e.key === 'Enter') pw.focus(); });
 });
 
+
+
+// ════════════════ UP BANK ════════════════
+
+const UP_TOKEN = 'up:yeah:shUan5cCPYWRnlstTzSunX5EXjM4cmlqFJBZmH842CFBD4HFqvaZwSeBA2gb4xYBJZZ64cj3XyA8vtV0h8svQ0avqGsEhRhtLd6ncfcNAjtpGO6dCM9winUKD31yBYB8';
+const UP_BASE  = 'https://api.up.com.au/api/v1';
+
+async function upGet(path) {
+  const r = await fetch(UP_BASE + path, {
+    headers: { 'Authorization': 'Bearer ' + UP_TOKEN }
+  });
+  if (!r.ok) throw new Error('Up API error: ' + r.status);
+  return await r.json();
+}
+
+async function upGetAll(path) {
+  // Paginate through all results
+  let results = [];
+  let url = UP_BASE + path;
+  while (url) {
+    const r = await fetch(url, {
+      headers: { 'Authorization': 'Bearer ' + UP_TOKEN }
+    });
+    if (!r.ok) break;
+    const data = await r.json();
+    results = results.concat(data.data || []);
+    url = data.links && data.links.next ? data.links.next : null;
+  }
+  return results;
+}
+
+async function fetchUpTransactions() {
+  const btn = document.getElementById('up-fetch-btn');
+  const status = document.getElementById('up-status');
+  const resultsEl = document.getElementById('up-results');
+
+  btn.disabled = true;
+  btn.textContent = 'Fetching...';
+  status.style.display = 'block';
+  status.innerHTML = '<div style="display:flex;align-items:center;gap:10px;"><div style="width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;"></div><span style="font-size:13px;color:var(--text2);">Connecting to Up Bank...</span></div>';
+  resultsEl.style.display = 'none';
+
+  try {
+    // Get the selected month range
+    const monthSel = document.getElementById('up-month-sel');
+    const [yr, mo] = monthSel.value.split('-').map(Number);
+    const since = new Date(yr, mo, 1).toISOString();
+    const until = new Date(yr, mo + 1, 0, 23, 59, 59).toISOString();
+    const owner = document.getElementById('up-owner').value;
+
+    status.innerHTML = '<div style="display:flex;align-items:center;gap:10px;"><div style="width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;"></div><span style="font-size:13px;color:var(--text2);">Loading transactions from Up...</span></div>';
+
+    const txns = await upGetAll('/transactions?filter[status]=SETTLED&filter[since]=' + encodeURIComponent(since) + '&filter[until]=' + encodeURIComponent(until) + '&pageSize=100');
+
+    // Filter to debits only (negative amounts)
+    const debits = txns.filter(t => parseFloat(t.attributes.amount.value) < 0);
+
+    if (debits.length === 0) {
+      status.innerHTML = '<span style="font-size:13px;color:var(--text2);">No transactions found for ' + MONTHS_FULL[mo] + ' ' + yr + '.</span>';
+      btn.disabled = false;
+      btn.textContent = 'Fetch from Up Bank';
+      return;
+    }
+
+    status.innerHTML = '<div style="display:flex;align-items:center;gap:10px;"><div style="width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;"></div><span style="font-size:13px;color:var(--text2);">Categorising ' + debits.length + ' transactions with AI...</span></div>';
+
+    // Build transaction list for AI
+    const txnText = debits.map(t => {
+      const date = t.attributes.createdAt.slice(0, 10);
+      const desc = t.attributes.description;
+      const amt = Math.abs(parseFloat(t.attributes.amount.value)).toFixed(2);
+      return date + '  ' + desc + '  -$' + amt;
+    }).join('\n');
+
+    const monthLabel = MONTHS_FULL[mo] + ' ' + yr;
+    const catList = 'Groceries, Dining Out, Uber Eats, Alcohol / Pub, Fuel, Transport, Medical, Personal Care, Clothing, Entertainment, Personal Spending, Home Maintenance, Utilities, Subscriptions, Other';
+
+    const systemPrompt = 'You are a financial transaction categoriser for an Australian household budget app. Account owner: ' + owner + '. Period: ' + monthLabel + '. Categories: ' + catList + '. Rules: map each transaction to the best category. Woolworths/Coles/Aldi/IGA=Groceries; restaurants/cafes=Dining Out; Menulog/DoorDash/Uber Eats=Uber Eats; BWS/Dan Murphys/pubs=Alcohol / Pub; BP/Shell/Ampol/fuel=Fuel; Uber/taxi/transport=Transport; pharmacy/doctor=Medical; haircut/beauty=Personal Care; clothing=Clothing; cinema/events=Entertainment; Netflix/Spotify/subscriptions=Subscriptions; Bunnings/hardware=Home Maintenance; power/gas/water/internet=Utilities; everything else=Other. For owner: use "' + owner + '" unless clearly shared. Respond ONLY with valid JSON array, no markdown: [{"date":"YYYY-MM-DD","desc":"clean merchant name","cat":"Category","owner":"' + owner + '","amount":12.50}]';
+
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4000,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: 'Categorise these Up Bank transactions:\n\n' + txnText }]
+      })
+    });
+
+    const aiData = await resp.json();
+    const raw = aiData.content.find(b => b.type === 'text')?.text || '[]';
+    const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
+
+    status.style.display = 'none';
+    btn.disabled = false;
+    btn.textContent = 'Fetch from Up Bank';
+
+    // Reuse the existing renderImportResults function
+    importResults = parsed;
+    renderImportResults(parsed, monthLabel);
+
+    // Point confirmImport to the right month
+    document.getElementById('imp-month-sel') && (document.getElementById('imp-month-sel').value = monthSel.value);
+
+  } catch(e) {
+    status.innerHTML = '<span style="font-size:13px;color:var(--red);">Error: ' + e.message + '</span>';
+    btn.disabled = false;
+    btn.textContent = 'Fetch from Up Bank';
+  }
+}
+
+// ════════════════ MOBILE NAV ════════════════
+
+function mobileNav(id, btnEl) {
+  // Use showPage but also update mobile nav active state
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  const pageEl = document.getElementById('page-' + id);
+  if (pageEl) pageEl.classList.add('active');
+  // Desktop nav active
+  const desktopBtn = document.querySelector('.nav-tab[onclick*="\'" + id + "\'"]');
+  if (desktopBtn) desktopBtn.classList.add('active');
+  // Mobile nav active
+  document.querySelectorAll('.mnb').forEach(b => b.classList.remove('active'));
+  const mobileBtn = btnEl || document.getElementById('mnb-' + id);
+  if (mobileBtn) mobileBtn.classList.add('active');
+  // Trigger render
+  if (id === 'dashboard') renderDashboard();
+  else if (id === 'tracker') renderTracker();
+  else if (id === 'forecast') renderForecast();
+  else if (id === 'mortgage') renderMortgage();
+  else if (id === 'budget') renderBudgetSettings();
+  else if (id === 'savings') renderSavings();
+  else if (id === 'import') populateImportMonthSel();
+  // Scroll to top
+  window.scrollTo(0, 0);
+}
+
+function toggleMobileMore() {
+  const el = document.getElementById('mobile-more');
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+// Close more menu on outside tap
+document.addEventListener('click', function(e) {
+  const more = document.getElementById('mobile-more');
+  const moreBtn = document.getElementById('mnb-more');
+  if (more && more.style.display === 'block' && !more.contains(e.target) && e.target !== moreBtn && !moreBtn.contains(e.target)) {
+    more.style.display = 'none';
+  }
+});
+
 // ════════════════ INIT ════════════════
 
 populateMonthSelects();
@@ -2756,6 +3077,13 @@ async function initApp() {
 // ── Boot: check for saved session, otherwise show login ──────────────────
 
 (async function boot() {
+  // Preview bypass: open file with ?preview=true to skip login
+  if (window.location.search.includes('preview=true') || window.location.hash === '#preview') {
+    showApp();
+    await loadFromSupabase().catch(() => {});
+    renderDashboard();
+    return;
+  }
   showLoginScreen();
   const saved = localStorage.getItem('hb_session');
   if (saved) {
@@ -2774,6 +3102,35 @@ async function initApp() {
   }, 150);
 })();
 </script>
+<!-- MOBILE BOTTOM NAV -->
+<div id="mobile-nav">
+  <div class="mobile-nav-inner">
+    <button class="mnb active" id="mnb-dashboard" onclick="mobileNav('dashboard',this)">
+      <span class="ico">📊</span>Dashboard
+    </button>
+    <button class="mnb" id="mnb-tracker" onclick="mobileNav('tracker',this)">
+      <span class="ico">📝</span>Tracker
+    </button>
+    <button class="mnb" id="mnb-savings" onclick="mobileNav('savings',this)">
+      <span class="ico">💰</span>Savings
+    </button>
+    <button class="mnb" id="mnb-forecast" onclick="mobileNav('forecast',this)">
+      <span class="ico">📈</span>Forecast
+    </button>
+    <button class="mnb" id="mnb-more" onclick="toggleMobileMore()">
+      <span class="ico">⋯</span>More
+    </button>
+  </div>
+</div>
+
+<!-- MOBILE MORE MENU -->
+<div id="mobile-more" style="display:none;position:fixed;bottom:54px;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);z-index:149;padding:8px 0;">
+  <button onclick="mobileNav('mortgage',null);toggleMobileMore()" style="width:100%;padding:14px 20px;text-align:left;border:none;background:none;font-family:var(--font);font-size:14px;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:12px;">🏠 <span>Mortgage</span></button>
+  <button onclick="mobileNav('budget',null);toggleMobileMore()" style="width:100%;padding:14px 20px;text-align:left;border:none;background:none;font-family:var(--font);font-size:14px;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:12px;">⚙️ <span>Budget Settings</span></button>
+  <button onclick="mobileNav('import',null);toggleMobileMore()" style="width:100%;padding:14px 20px;text-align:left;border:none;background:none;font-family:var(--font);font-size:14px;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:12px;">📥 <span>Import</span></button>
+  <button onclick="doLogout();toggleMobileMore()" style="width:100%;padding:14px 20px;text-align:left;border:none;background:none;font-family:var(--font);font-size:14px;color:var(--red);cursor:pointer;display:flex;align-items:center;gap:12px;">↩ <span>Sign out</span></button>
+</div>
+
 </div><!-- end app-shell -->
 </body>
 </html>
