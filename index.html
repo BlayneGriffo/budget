@@ -495,7 +495,11 @@
 
 <!-- ═══════════════════════════════════════════════ BUDGET SETTINGS ══ -->
 <div id="page-budget" class="page">
-  <div style="font-size:20px;font-weight:600;margin-bottom:20px;">Budget Settings</div>
+  <div class="flex between flex-center mb-20" style="flex-wrap:wrap;gap:10px;">
+    <div style="font-size:20px;font-weight:600;">Budget Settings</div>
+    <button class="btn" onclick="showMerchantRules()" style="font-size:13px;">🏷 Merchant Rules</button>
+  </div>
+  <div id="budget-items-section">
 
   <div class="grid-2 mb-16">
     <div class="card">
@@ -802,6 +806,56 @@ Or copy straight from your banking app — any format is fine."
 </div>
 
 
+  </div><!-- end budget-items-section -->
+
+<!-- MERCHANT RULES SECTION (inside budget settings page) -->
+<div id="merchant-rules-section" style="display:none;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+    <div class="section-title" style="margin:0;">merchant category rules</div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-primary" onclick="showAddRuleModal()">+ Add rule</button>
+      <button class="btn" onclick="showPage('budget',document.querySelector('.nav-tab'))">← Back to budget</button>
+    </div>
+  </div>
+  <div class="card" style="margin-bottom:12px;">
+    <div style="font-size:13px;color:var(--text2);line-height:1.6;">
+      When importing transactions, these rules are checked first. If a merchant name contains the pattern, it's assigned that category automatically. Your custom rules take priority over the built-in defaults.
+    </div>
+  </div>
+  <div class="card">
+    <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:12px;">your custom rules</div>
+    <div id="merchant-rules-list"></div>
+    <div id="merchant-rules-empty" style="display:none;font-size:13px;color:var(--text3);text-align:center;padding:20px 0;">No custom rules yet. Use the 💾 Remember button when reviewing imports.</div>
+  </div>
+</div>
+
+<!-- Add Rule Modal -->
+<div class="modal-overlay" id="add-rule-modal">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-title">Add merchant rule</div>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bottom:5px;">Merchant pattern (partial match)</label>
+      <input type="text" id="rule-pattern" placeholder="e.g. woolworths" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:8px;font-family:var(--font);font-size:14px;color:var(--text);">
+      <div style="font-size:11px;color:var(--text3);margin-top:4px;">Any transaction containing this text will be matched (case-insensitive)</div>
+    </div>
+    <div style="margin-bottom:20px;">
+      <label style="font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bottom:5px;">Category</label>
+      <select id="rule-cat" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:8px;font-family:var(--font);font-size:14px;color:var(--text);">
+        <option>Groceries</option><option>Dining Out</option><option>Uber Eats</option>
+        <option>Alcohol / Pub</option><option>Fuel</option><option>Transport</option>
+        <option>Medical</option><option>Personal Care</option><option>Clothing</option>
+        <option>Entertainment</option><option>Personal Spending</option>
+        <option>Home Maintenance</option><option>Utilities</option>
+        <option>Subscriptions</option><option>Other</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-primary" onclick="saveNewRule()" style="flex:1;">Save rule</button>
+      <button class="btn" onclick="closeModal('add-rule-modal')" style="flex:1;">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════════════════════════════════════ SAVINGS ══ -->
 <div id="page-savings" class="page">
 
@@ -952,6 +1006,108 @@ const VAR_BUDGET_MAP = {
   'Transport': 30, 'Utilities': 100, 'Subscriptions': 186, 'Other': 0
 };
 
+// ════════════════ MERCHANT RULES ════════════════
+// Rule format: { pattern: 'woolworths', cat: 'Groceries', exact: false }
+// pattern is matched case-insensitively against the transaction description
+// exact: false = substring match, exact: true = full match
+
+const DEFAULT_MERCHANT_RULES = [
+  // Groceries
+  { pattern: 'woolworths', cat: 'Groceries' }, { pattern: 'coles', cat: 'Groceries' },
+  { pattern: 'aldi', cat: 'Groceries' }, { pattern: 'iga', cat: 'Groceries' },
+  { pattern: 'harris farm', cat: 'Groceries' }, { pattern: 'costco', cat: 'Groceries' },
+  { pattern: 'fruit', cat: 'Groceries' }, { pattern: 'butcher', cat: 'Groceries' },
+  { pattern: 'bakery', cat: 'Groceries' }, { pattern: 'foodworks', cat: 'Groceries' },
+  // Dining Out
+  { pattern: 'mcdonald', cat: 'Dining Out' }, { pattern: 'kfc', cat: 'Dining Out' },
+  { pattern: 'subway', cat: 'Dining Out' }, { pattern: 'hungry jack', cat: 'Dining Out' },
+  { pattern: 'grilld', cat: 'Dining Out' }, { pattern: 'nando', cat: 'Dining Out' },
+  { pattern: 'domino', cat: 'Dining Out' }, { pattern: 'pizza hut', cat: 'Dining Out' },
+  { pattern: 'cafe', cat: 'Dining Out' }, { pattern: 'coffee', cat: 'Dining Out' },
+  { pattern: 'restaurant', cat: 'Dining Out' }, { pattern: 'bistro', cat: 'Dining Out' },
+  { pattern: 'sushi', cat: 'Dining Out' }, { pattern: 'thai', cat: 'Dining Out' },
+  { pattern: 'chinese', cat: 'Dining Out' }, { pattern: 'indian', cat: 'Dining Out' },
+  { pattern: 'starbucks', cat: 'Dining Out' }, { pattern: 'gloria jean', cat: 'Dining Out' },
+  // Uber Eats
+  { pattern: 'uber eats', cat: 'Uber Eats' }, { pattern: 'ubereats', cat: 'Uber Eats' },
+  { pattern: 'menulog', cat: 'Uber Eats' }, { pattern: 'doordash', cat: 'Uber Eats' },
+  { pattern: 'deliveroo', cat: 'Uber Eats' },
+  // Alcohol / Pub
+  { pattern: 'bws', cat: 'Alcohol / Pub' }, { pattern: 'dan murphy', cat: 'Alcohol / Pub' },
+  { pattern: 'liquorland', cat: 'Alcohol / Pub' }, { pattern: 'bottle-o', cat: 'Alcohol / Pub' },
+  { pattern: 'first choice liquor', cat: 'Alcohol / Pub' },
+  { pattern: ' bar ', cat: 'Alcohol / Pub' }, { pattern: ' pub ', cat: 'Alcohol / Pub' },
+  { pattern: ' hotel ', cat: 'Alcohol / Pub' }, { pattern: 'tavern', cat: 'Alcohol / Pub' },
+  { pattern: 'brewery', cat: 'Alcohol / Pub' }, { pattern: 'bottle shop', cat: 'Alcohol / Pub' },
+  // Fuel
+  { pattern: 'bp ', cat: 'Fuel' }, { pattern: 'shell', cat: 'Fuel' },
+  { pattern: 'ampol', cat: 'Fuel' }, { pattern: 'caltex', cat: 'Fuel' },
+  { pattern: 'puma energy', cat: 'Fuel' }, { pattern: 'united petroleum', cat: 'Fuel' },
+  { pattern: 'metro petroleum', cat: 'Fuel' }, { pattern: 'liberty oil', cat: 'Fuel' },
+  { pattern: '7-eleven', cat: 'Fuel' }, { pattern: 'petrol', cat: 'Fuel' },
+  // Transport
+  { pattern: 'uber', cat: 'Transport' }, { pattern: 'ola cab', cat: 'Transport' },
+  { pattern: 'didi', cat: 'Transport' }, { pattern: 'taxifare', cat: 'Transport' },
+  { pattern: 'opal', cat: 'Transport' }, { pattern: 'transdev', cat: 'Transport' },
+  { pattern: 'nsw trains', cat: 'Transport' }, { pattern: 'bus fare', cat: 'Transport' },
+  // Medical
+  { pattern: 'chemist', cat: 'Medical' }, { pattern: 'pharmacy', cat: 'Medical' },
+  { pattern: 'priceline', cat: 'Medical' }, { pattern: 'amcal', cat: 'Medical' },
+  { pattern: 'medical', cat: 'Medical' }, { pattern: 'dental', cat: 'Medical' },
+  { pattern: 'doctor', cat: 'Medical' }, { pattern: 'physio', cat: 'Medical' },
+  { pattern: 'optometrist', cat: 'Medical' }, { pattern: 'pathology', cat: 'Medical' },
+  // Personal Care
+  { pattern: 'haircut', cat: 'Personal Care' }, { pattern: 'hairdress', cat: 'Personal Care' },
+  { pattern: 'barber', cat: 'Personal Care' }, { pattern: 'salon', cat: 'Personal Care' },
+  { pattern: 'beauty', cat: 'Personal Care' }, { pattern: 'nail', cat: 'Personal Care' },
+  { pattern: 'priceline pharmacy', cat: 'Personal Care' },
+  // Clothing
+  { pattern: 'zara', cat: 'Clothing' }, { pattern: 'h&m', cat: 'Clothing' },
+  { pattern: 'uniqlo', cat: 'Clothing' }, { pattern: 'cotton on', cat: 'Clothing' },
+  { pattern: 'country road', cat: 'Clothing' }, { pattern: 'target', cat: 'Clothing' },
+  { pattern: 'kmart', cat: 'Clothing' }, { pattern: 'myer', cat: 'Clothing' },
+  { pattern: 'david jones', cat: 'Clothing' }, { pattern: 'sports direct', cat: 'Clothing' },
+  { pattern: 'rebel sport', cat: 'Clothing' }, { pattern: 'Nike', cat: 'Clothing' },
+  { pattern: 'adidas', cat: 'Clothing' },
+  // Entertainment
+  { pattern: 'event cinema', cat: 'Entertainment' }, { pattern: 'hoyts', cat: 'Entertainment' },
+  { pattern: 'village cinema', cat: 'Entertainment' }, { pattern: 'ticketek', cat: 'Entertainment' },
+  { pattern: 'ticketmaster', cat: 'Entertainment' }, { pattern: 'moshtix', cat: 'Entertainment' },
+  { pattern: 'steam', cat: 'Entertainment' }, { pattern: 'playstation', cat: 'Entertainment' },
+  // Subscriptions
+  { pattern: 'netflix', cat: 'Subscriptions' }, { pattern: 'spotify', cat: 'Subscriptions' },
+  { pattern: 'apple.com/bill', cat: 'Subscriptions' }, { pattern: 'google storage', cat: 'Subscriptions' },
+  { pattern: 'amazon prime', cat: 'Subscriptions' }, { pattern: 'disney', cat: 'Subscriptions' },
+  { pattern: 'binge', cat: 'Subscriptions' }, { pattern: 'foxtel', cat: 'Subscriptions' },
+  { pattern: 'stan.com', cat: 'Subscriptions' }, { pattern: 'kayo', cat: 'Subscriptions' },
+  { pattern: 'hayu', cat: 'Subscriptions' }, { pattern: 'hbo', cat: 'Subscriptions' },
+  { pattern: 'microsoft 365', cat: 'Subscriptions' }, { pattern: 'adobe', cat: 'Subscriptions' },
+  // Home Maintenance
+  { pattern: 'bunnings', cat: 'Home Maintenance' }, { pattern: 'mitre 10', cat: 'Home Maintenance' },
+  { pattern: 'ikea', cat: 'Home Maintenance' }, { pattern: 'total tools', cat: 'Home Maintenance' },
+  { pattern: 'clark rubber', cat: 'Home Maintenance' },
+  // Utilities
+  { pattern: 'ausgrid', cat: 'Utilities' }, { pattern: 'energyaustralia', cat: 'Utilities' },
+  { pattern: 'origin energy', cat: 'Utilities' }, { pattern: 'agl', cat: 'Utilities' },
+  { pattern: 'sydney water', cat: 'Utilities' }, { pattern: 'optus', cat: 'Utilities' },
+  { pattern: 'telstra', cat: 'Utilities' }, { pattern: 'vodafone', cat: 'Utilities' },
+  { pattern: 'aussie broadband', cat: 'Utilities' }, { pattern: 'superloop', cat: 'Utilities' },
+];
+
+function categorizeMerchant(description) {
+  const desc = description.toLowerCase();
+  // Check user custom rules first (they take priority)
+  const customRules = state.merchantRules || [];
+  for (const rule of customRules) {
+    if (desc.includes(rule.pattern.toLowerCase())) return rule.cat;
+  }
+  // Then check default rules
+  for (const rule of DEFAULT_MERCHANT_RULES) {
+    if (desc.includes(rule.pattern.toLowerCase())) return rule.cat;
+  }
+  return 'Other';
+}
+
 const DEFAULT_ACCOUNTS = [
   { name: "Blayne — Offset", owner: "Blayne", balance: 6000,  rate: 0,    goalLabel: "Offset", goalTarget: 0,     isOffset: true  },
   { name: "Sophie — Offset", owner: "Sophie", balance: 20000, rate: 0,    goalLabel: "Offset", goalTarget: 0,     isOffset: true  },
@@ -1011,6 +1167,7 @@ let state = {
     sophieAmt: 2671.72, sophieFreq: 'fortnightly',
     loanBalance: 653456.44, rate: 5.80, offset: 26200
   },
+  merchantRules: JSON.parse(localStorage.getItem('merchant_rules') || '[]'),
   synced: false
 };
 
@@ -1020,6 +1177,7 @@ function saveLocal() {
   localStorage.setItem('direct_actuals', JSON.stringify(state.directActuals));
   localStorage.setItem('savings_accounts', JSON.stringify(state.accounts));
   localStorage.setItem('config', JSON.stringify(state.config));
+  localStorage.setItem('merchant_rules', JSON.stringify(state.merchantRules || []));
 }
 
 async function saveState() {
@@ -2251,9 +2409,15 @@ If you cannot read any transactions, return an empty array [].`;
     });
 
     const data = await resp.json();
-    if (!resp.ok) throw new Error(data.error?.message || 'API error ' + resp.status);
-
-    const raw = data.content.find(b => b.type === 'text')?.text || '[]';
+    if (!resp.ok) {
+      const msg = (data.error && data.error.message) ? data.error.message : 'API error ' + resp.status;
+      throw new Error(msg);
+    }
+    if (!data.content || !Array.isArray(data.content)) {
+      throw new Error('Unexpected response from AI: ' + JSON.stringify(data).slice(0, 200));
+    }
+    const textBlock = data.content.find(function(b) { return b.type === 'text'; });
+    const raw = textBlock ? textBlock.text : '[]';
     const cleaned = raw.replace(/```json|```/g, '').trim();
     importResults = JSON.parse(cleaned);
 
@@ -2281,78 +2445,103 @@ If you cannot read any transactions, return an empty array [].`;
 
 const ALL_CATS = ['Groceries','Dining Out','Uber Eats','Alcohol / Pub','Fuel','Transport','Medical','Personal Care','Clothing','Entertainment','Personal Spending','Home Maintenance','Utilities','Subscriptions','Other'];
 
-function renderImportResults(txns, monthLabel) {
+function renderImportResults(results, monthLabel) {
+  const CATS = ['Groceries','Dining Out','Uber Eats','Alcohol / Pub','Fuel','Transport',
+    'Medical','Personal Care','Clothing','Entertainment','Personal Spending',
+    'Home Maintenance','Utilities','Subscriptions','Other'];
+
+  const resultsEl = document.getElementById('imp-results');
   const tbody = document.getElementById('imp-review-body');
-  document.getElementById('imp-check-all').checked = true;
-  document.getElementById('imp-spinner').style.display = 'none';
-  document.getElementById('imp-status-text').textContent = 'Done — ' + txns.length + ' transactions found';
+  const countEl = document.getElementById('imp-count');
+  const summaryEl = document.getElementById('imp-summary');
 
-  tbody.innerHTML = '';
-  txns.forEach(function(t, i) {
-    const tr = document.createElement('tr');
-    tr.id = 'imp-row-' + i;
+  if (!resultsEl || !tbody) return;
 
-    // checkbox
-    const tdChk = document.createElement('td');
-    const chk = document.createElement('input');
-    chk.type = 'checkbox'; chk.className = 'imp-chk'; chk.dataset.idx = i; chk.checked = true;
-    tdChk.appendChild(chk); tr.appendChild(tdChk);
+  importResults = results;
+  resultsEl.style.display = 'block';
 
-    // date
-    const tdDate = document.createElement('td');
-    tdDate.style.cssText = 'font-size:12px;white-space:nowrap;';
-    tdDate.textContent = t.date; tr.appendChild(tdDate);
+  const total = results.reduce(function(s,r) { return s + (r.amount||0); }, 0);
+  if (countEl) countEl.textContent = results.length + ' transactions · $' + total.toFixed(2) + ' total';
 
-    // desc
-    const tdDesc = document.createElement('td');
-    tdDesc.style.fontSize = '12px';
-    tdDesc.textContent = t.desc; tr.appendChild(tdDesc);
+  tbody.innerHTML = results.map(function(r, i) {
+    const catOptions = CATS.map(function(cat) {
+      return '<option value="' + cat + '"' + (cat === r.cat ? ' selected' : '') + '>' + cat + '</option>';
+    }).join('');
 
-    // category select
-    const tdCat = document.createElement('td');
-    const catSel = document.createElement('select');
-    catSel.className = 'imp-cat-sel'; catSel.dataset.idx = i; catSel.dataset.field = 'cat';
-    catSel.style.cssText = 'font-size:12px;padding:3px 6px;border:1px solid var(--border2);border-radius:5px;background:var(--surface);color:var(--text);width:100%;';
-    ALL_CATS.forEach(function(c) {
-      const opt = document.createElement('option');
-      opt.value = c; opt.textContent = c;
-      if (c === t.cat) opt.selected = true;
-      catSel.appendChild(opt);
-    });
-    catSel.addEventListener('change', function() { updateImportRow(parseInt(this.dataset.idx), 'cat', this.value); });
-    tdCat.appendChild(catSel); tr.appendChild(tdCat);
+    const ownerOptions = ['Blayne','Sophie','Shared'].map(function(o) {
+      return '<option value="' + o + '"' + (o === r.owner ? ' selected' : '') + '>' + o + '</option>';
+    }).join('');
 
-    // owner select
-    const tdOwn = document.createElement('td');
-    const ownSel = document.createElement('select');
-    ownSel.className = 'imp-own-sel'; ownSel.dataset.idx = i; ownSel.dataset.field = 'owner';
-    ownSel.style.cssText = 'font-size:12px;padding:3px 6px;border:1px solid var(--border2);border-radius:5px;background:var(--surface);color:var(--text);';
-    ['Blayne','Sophie','Shared'].forEach(function(o) {
-      const opt = document.createElement('option');
-      opt.value = o; opt.textContent = o;
-      if (o === t.owner) opt.selected = true;
-      ownSel.appendChild(opt);
-    });
-    ownSel.addEventListener('change', function() { updateImportRow(parseInt(this.dataset.idx), 'owner', this.value); });
-    tdOwn.appendChild(ownSel); tr.appendChild(tdOwn);
+    // Show a "remember" button if category was auto-matched (not "Other" or already custom)
+    const isOther = r.cat === 'Other';
+    const rememberBtn = '<button onclick="rememberRule(' + i + ')" title="Remember this category for \''+r.desc+'\'" style="font-family:var(--font);font-size:10px;padding:3px 7px;border:1px solid var(--border2);border-radius:5px;background:var(--green-bg);color:var(--green);cursor:pointer;white-space:nowrap;">💾 Remember</button>';
 
-    // amount
-    const tdAmt = document.createElement('td');
-    tdAmt.className = 'num'; tdAmt.style.cssText = 'font-size:12px;font-family:var(--mono);';
-    tdAmt.textContent = '$' + parseFloat(t.amount).toFixed(2);
-    tr.appendChild(tdAmt);
+    return '<tr id="imp-row-' + i + '">' +
+      '<td><input type="checkbox" class="imp-check" data-idx="' + i + '" checked></td>' +
+      '<td style="font-size:12px;color:var(--text2);">' + r.date + '</td>' +
+      '<td style="font-size:12px;max-width:200px;">' +
+        '<div style="font-weight:500;">' + (r.desc||'') + '</div>' +
+        '<div style="margin-top:3px;">' + rememberBtn + '</div>' +
+      '</td>' +
+      '<td><select onchange="updateImportCat(' + i + ',this.value)" style="font-family:var(--font);font-size:12px;padding:4px 6px;border:1px solid var(--border2);border-radius:6px;background:var(--surface);color:var(--text);width:100%;">' + catOptions + '</select></td>' +
+      '<td><select onchange="updateImportOwner(' + i + ',this.value)" style="font-family:var(--font);font-size:12px;padding:4px 6px;border:1px solid var(--border2);border-radius:6px;background:var(--surface);color:var(--text);width:100%;">' + ownerOptions + '</select></td>' +
+      '<td class="num" style="font-family:var(--mono);font-size:12px;">$' + (r.amount||0).toFixed(2) + '</td>' +
+    '</tr>';
+  }).join('');
 
-    tbody.appendChild(tr);
+  if (summaryEl) {
+    const otherCount = results.filter(function(r) { return r.cat === 'Other'; }).length;
+    summaryEl.innerHTML = otherCount > 0
+      ? '<span style="color:var(--amber);">⚠ ' + otherCount + ' transaction' + (otherCount>1?'s':'') + ' couldn\'t be matched \u2014 check the <b>Other</b> rows and update categories, then click \ud83d\udcbe Remember so they\'re auto-matched next time.</span>'
+      : '<span style="color:var(--green);">✓ All transactions matched to categories automatically.</span>';
+  }
+
+  // Add click handler for select-all checkbox
+  const checkAll = document.getElementById('imp-check-all');
+  if (checkAll) checkAll.checked = true;
+}
+
+function updateImportCat(idx, cat) {
+  if (importResults[idx]) importResults[idx].cat = cat;
+}
+
+function updateImportOwner(idx, owner) {
+  if (importResults[idx]) importResults[idx].owner = owner;
+}
+
+function rememberRule(idx) {
+  const r = importResults[idx];
+  if (!r) return;
+  const desc = r.desc.toLowerCase().trim();
+  // Use first 3+ word chunk as pattern (more reliable than full desc)
+  const words = desc.split(/\s+/).slice(0, 3).join(' ');
+  const pattern = words.length > 3 ? words : desc.slice(0, 20);
+
+  if (!state.merchantRules) state.merchantRules = [];
+  // Remove any existing rule for this pattern
+  state.merchantRules = state.merchantRules.filter(function(rule) {
+    return rule.pattern.toLowerCase() !== pattern.toLowerCase();
   });
+  // Add new rule
+  state.merchantRules.unshift({ pattern: pattern, cat: r.cat, desc: r.desc });
+  saveLocal();
 
-  const total = txns.reduce(function(s, t) { return s + parseFloat(t.amount); }, 0);
-  document.getElementById('imp-count').textContent = txns.length + ' transactions found';
-  document.getElementById('imp-summary').innerHTML =
-    '<strong>' + txns.length + ' transactions</strong> from ' + monthLabel +
-    ' totalling <strong>$' + total.toFixed(2) + '</strong>. ' +
-    'Review categories above, then click <strong>Save all to tracker</strong>.';
-
-  document.getElementById('imp-results').style.display = 'block';
+  // Visual feedback
+  const btn = document.querySelector('#imp-row-' + idx + ' button');
+  if (btn) {
+    btn.textContent = '✓ Saved!';
+    btn.style.background = 'var(--green)';
+    btn.style.color = '#fff';
+    btn.style.borderColor = 'var(--green)';
+    setTimeout(function() {
+      btn.textContent = '💾 Remember';
+      btn.style.background = 'var(--green-bg)';
+      btn.style.color = 'var(--green)';
+      btn.style.borderColor = 'var(--border2)';
+    }, 2000);
+  }
+  showSyncStatus('syncing');
+  saveState().then(function() { showSyncStatus('ok'); });
 }
 
 function updateImportRow(i, field, val) {
@@ -2874,34 +3063,18 @@ async function fetchUpTransactions() {
       return;
     }
 
-    setStatus('Categorising ' + debits.length + ' transactions with AI...', true);
-
-    const txnText = debits.map(t => {
-      const date = t.attributes.createdAt.slice(0, 10);
-      const desc = t.attributes.description;
-      const amt  = Math.abs(parseFloat(t.attributes.amount.value)).toFixed(2);
-      return date + '  ' + desc + '  -$' + amt;
-    }).join('\n');
+    setStatus('Categorising ' + debits.length + ' transactions...', true);
 
     const monthLabel = MONTHS_FULL[mo] + ' ' + yr;
-    const catList = 'Groceries, Dining Out, Uber Eats, Alcohol / Pub, Fuel, Transport, Medical, Personal Care, Clothing, Entertainment, Personal Spending, Home Maintenance, Utilities, Subscriptions, Other';
 
-    const systemPrompt = 'You are a financial transaction categoriser for an Australian household budget app. Account owner: ' + owner + '. Period: ' + monthLabel + '. Categories: ' + catList + '. Rules: map each transaction to the best category. Woolworths/Coles/Aldi/IGA=Groceries; restaurants/cafes=Dining Out; Menulog/DoorDash/Uber Eats=Uber Eats; BWS/Dan Murphys/pubs=Alcohol / Pub; BP/Shell/Ampol/fuel=Fuel; Uber/taxi/transport=Transport; pharmacy/doctor=Medical; haircut/beauty=Personal Care; clothing=Clothing; cinema/events=Entertainment; Netflix/Spotify/subscriptions=Subscriptions; Bunnings/hardware=Home Maintenance; power/gas/water/internet=Utilities; everything else=Other. Respond ONLY with valid JSON array, no markdown: [{"date":"YYYY-MM-DD","desc":"clean merchant name","cat":"Category","owner":"' + owner + '","amount":12.50}]';
-
-    const resp = await fetch('/.netlify/functions/ai-proxy', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 4000,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: 'Categorise these Up Bank transactions:\n\n' + txnText }]
-      })
+    // Rule-based categorisation — instant, free, no API call needed
+    const parsed = debits.map(function(t) {
+      const date = t.attributes.createdAt.slice(0, 10);
+      const desc = t.attributes.description;
+      const amt  = Math.abs(parseFloat(t.attributes.amount.value));
+      const cat  = categorizeMerchant(desc);
+      return { date: date, desc: desc, cat: cat, owner: owner, amount: amt };
     });
-
-    const aiData = await resp.json();
-    const raw = (aiData.content.find(b => b.type === 'text') || {}).text || '[]';
-    const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
 
     statusEl.style.display = 'none';
     btn.disabled = false;
@@ -2916,6 +3089,91 @@ async function fetchUpTransactions() {
     btn.disabled = false;
     btn.textContent = 'Fetch from Up Bank';
   }
+}
+
+
+// ════════════════ MERCHANT RULES UI ════════════════
+
+function renderMerchantRules() {
+  const list = document.getElementById('merchant-rules-list');
+  const empty = document.getElementById('merchant-rules-empty');
+  if (!list) return;
+  const rules = state.merchantRules || [];
+  if (rules.length === 0) {
+    list.innerHTML = '';
+    if (empty) empty.style.display = 'block';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  const CATS = ['Groceries','Dining Out','Uber Eats','Alcohol / Pub','Fuel','Transport',
+    'Medical','Personal Care','Clothing','Entertainment','Personal Spending',
+    'Home Maintenance','Utilities','Subscriptions','Other'];
+
+  list.innerHTML = rules.map(function(rule, i) {
+    const catOpts = CATS.map(function(cat) {
+      return '<option value="' + cat + '"' + (cat === rule.cat ? ' selected' : '') + '>' + cat + '</option>';
+    }).join('');
+    return '<div style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">' +
+      '<div style="flex:1;min-width:140px;">' +
+        '<div style="font-size:13px;font-weight:500;color:var(--text);">' + rule.pattern + '</div>' +
+        (rule.desc ? '<div style="font-size:11px;color:var(--text3);">from: ' + rule.desc + '</div>' : '') +
+      '</div>' +
+      '<select onchange="updateMerchantRule(' + i + ',\'cat\',this.value)" style="font-family:var(--font);font-size:12px;padding:5px 8px;border:1px solid var(--border2);border-radius:6px;background:var(--surface);color:var(--text);">' + catOpts + '</select>' +
+      '<button onclick="deleteMerchantRule(' + i + ')" style="font-family:var(--font);font-size:11px;padding:5px 10px;border:1px solid var(--red);border-radius:6px;background:var(--red-bg);color:var(--red);cursor:pointer;">Delete</button>' +
+    '</div>';
+  }).join('');
+}
+
+function updateMerchantRule(idx, field, value) {
+  if (!state.merchantRules[idx]) return;
+  state.merchantRules[idx][field] = value;
+  saveLocal();
+  saveState();
+}
+
+function deleteMerchantRule(idx) {
+  state.merchantRules.splice(idx, 1);
+  saveLocal();
+  saveState();
+  renderMerchantRules();
+}
+
+function showAddRuleModal() {
+  document.getElementById('rule-pattern').value = '';
+  document.getElementById('rule-cat').value = 'Other';
+  openModal('add-rule-modal');
+}
+
+function saveNewRule() {
+  const pattern = document.getElementById('rule-pattern').value.trim();
+  const cat = document.getElementById('rule-cat').value;
+  if (!pattern) { alert('Please enter a merchant pattern'); return; }
+  if (!state.merchantRules) state.merchantRules = [];
+  // Remove duplicate
+  state.merchantRules = state.merchantRules.filter(function(r) {
+    return r.pattern.toLowerCase() !== pattern.toLowerCase();
+  });
+  state.merchantRules.unshift({ pattern: pattern, cat: cat });
+  saveLocal();
+  saveState();
+  closeModal('add-rule-modal');
+  renderMerchantRules();
+}
+
+function showMerchantRules() {
+  // Show merchant rules section, hide budget items
+  const budgetSection = document.getElementById('budget-items-section');
+  const rulesSection = document.getElementById('merchant-rules-section');
+  if (budgetSection) budgetSection.style.display = 'none';
+  if (rulesSection) rulesSection.style.display = 'block';
+  renderMerchantRules();
+}
+
+function hideMerchantRules() {
+  const budgetSection = document.getElementById('budget-items-section');
+  const rulesSection = document.getElementById('merchant-rules-section');
+  if (budgetSection) budgetSection.style.display = 'block';
+  if (rulesSection) rulesSection.style.display = 'none';
 }
 
 // ════════════════ MOBILE NAV ════════════════
