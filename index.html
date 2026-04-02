@@ -628,14 +628,7 @@
     </div>
     <div class="form-row">
       <label>Category</label>
-      <select id="exp-cat">
-        <option>Groceries</option><option>Dining Out</option><option>Uber Eats</option>
-        <option>Alcohol / Pub</option><option>Fuel</option><option>Transport</option>
-        <option>Medical</option><option>Personal Care</option><option>Clothing</option>
-        <option>Entertainment</option><option>Personal Spending</option>
-        <option>Home Maintenance</option><option>Utilities</option>
-        <option>Subscriptions</option><option>Other</option>
-      </select>
+      <select id="exp-cat"></select>
     </div>
     <div class="form-row">
       <label>Owner</label>
@@ -1058,13 +1051,78 @@ const DEFAULT_BUDGET = [
   {cat:'Financial',desc:'Super contributions (Blayne)',owner:'Blayne',freq:'monthly',type:'Fixed',amt:400,monthly:400},
 ];
 
-const VAR_CATS = ['Groceries','Dining Out','Uber Eats','Alcohol / Pub','Fuel','Transport','Medical','Personal Care','Clothing','Entertainment','Personal Spending','Home Maintenance','Utilities','Subscriptions','Other'];
-const VAR_BUDGET_MAP = {
-  'Groceries': 620, 'Dining Out': 145, 'Uber Eats': 132, 'Alcohol / Pub': 400,
-  'Fuel': 180, 'Medical': 80, 'Personal Care': 160, 'Clothing': 60,
-  'Entertainment': 84, 'Personal Spending': 320, 'Home Maintenance': 100,
-  'Transport': 30, 'Utilities': 100, 'Subscriptions': 186, 'Other': 0
-};
+const DEFAULT_VAR_CATS = ['Groceries','Dining Out','Uber Eats','Alcohol / Pub','Fuel','Transport','Medical','Personal Care','Clothing','Entertainment','Personal Spending','Home Maintenance','Utilities','Subscriptions','Other'];
+
+// Dynamic: build VAR_CATS from defaults + any custom categories found in budget items or transactions
+function getVarCats() {
+  var cats = DEFAULT_VAR_CATS.slice();
+  // Add any custom categories from budget items
+  if (state && state.budgetItems) {
+    state.budgetItems.forEach(function(item) {
+      if (item.type === 'Variable' && item.varCat && cats.indexOf(item.varCat) === -1) {
+        cats.splice(cats.length - 1, 0, item.varCat); // Insert before "Other"
+      }
+    });
+  }
+  // Add any custom categories from transactions
+  if (state && state.transactions) {
+    Object.values(state.transactions).forEach(function(monthTxns) {
+      if (!Array.isArray(monthTxns)) return;
+      monthTxns.forEach(function(t) {
+        if (t.cat && cats.indexOf(t.cat) === -1) {
+          cats.splice(cats.length - 1, 0, t.cat);
+        }
+      });
+    });
+  }
+  // Check localStorage for custom cats
+  try {
+    var custom = JSON.parse(localStorage.getItem('custom_var_cats') || '[]');
+    custom.forEach(function(c) { if (cats.indexOf(c) === -1) cats.splice(cats.length - 1, 0, c); });
+  } catch(e) {}
+  return cats;
+}
+
+// For backward compatibility, VAR_CATS is used as a reference in many places
+// We keep it as the default set but use getVarCats() when we need the full list
+var VAR_CATS = DEFAULT_VAR_CATS;
+
+// Dynamic: build VAR_BUDGET_MAP from actual budget items (combined view)
+function buildVarBudgetMap() {
+  var map = {};
+  getVarCats().forEach(function(c) { map[c] = 0; });
+  if (!state || !state.budgetItems) return map;
+  state.budgetItems.forEach(function(item) {
+    if (item.type !== 'Variable') return;
+    var cat = item.varCat || mapBudgetItemToVarCat(item.desc);
+    if (map[cat] !== undefined) map[cat] += (item.monthly || 0);
+    else map['Other'] += (item.monthly || 0);
+  });
+  return map;
+}
+
+// Global mapping function for budget item descriptions → VAR_CATS
+function mapBudgetItemToVarCat(desc) {
+  var d = desc.toLowerCase();
+  if (d.indexOf('personal spending') !== -1) return 'Personal Spending';
+  if (d.indexOf('personal care') !== -1 || d.indexOf('haircut') !== -1 || d.indexOf('beauty') !== -1) return 'Personal Care';
+  if (d.indexOf('grocer') !== -1) return 'Groceries';
+  if (d.indexOf('dining') !== -1) return 'Dining Out';
+  if (d.indexOf('uber eats') !== -1 || d.indexOf('ubereats') !== -1) return 'Uber Eats';
+  if (d.indexOf('alcohol') !== -1 || d.indexOf('pub') !== -1) return 'Alcohol / Pub';
+  if (d.indexOf('fuel') !== -1) return 'Fuel';
+  if (d.indexOf('uber') !== -1 || d.indexOf('taxi') !== -1 || d.indexOf('public transport') !== -1 || d.indexOf('toll') !== -1 || d.indexOf('parking') !== -1 || d.indexOf('car ') !== -1 || d.indexOf('rego') !== -1 || d.indexOf('registration') !== -1) return 'Transport';
+  if (d.indexOf('medical') !== -1 || d.indexOf('dental') !== -1 || d.indexOf('doctor') !== -1 || d.indexOf('pharmacy') !== -1) return 'Medical';
+  if (d.indexOf('cloth') !== -1 || d.indexOf('shoes') !== -1) return 'Clothing';
+  if (d.indexOf('movie') !== -1 || d.indexOf('concert') !== -1 || d.indexOf('event') !== -1 || d.indexOf('entertainment') !== -1 || d.indexOf('sport') !== -1 || d.indexOf('cricket') !== -1) return 'Entertainment';
+  if (d.indexOf('home maintenance') !== -1 || d.indexOf('sinking fund') !== -1 || d.indexOf('bunnings') !== -1) return 'Home Maintenance';
+  if (d.indexOf('electric') !== -1 || d.indexOf('water') !== -1 || d.indexOf('gas') !== -1 || d.indexOf('utilit') !== -1) return 'Utilities';
+  if (d.indexOf('subscri') !== -1 || d.indexOf('netflix') !== -1 || d.indexOf('spotify') !== -1 || d.indexOf('kayo') !== -1 || d.indexOf('disney') !== -1) return 'Subscriptions';
+  return 'Other';
+}
+
+// Backward compat: VAR_BUDGET_MAP as a getter that always computes fresh
+var VAR_BUDGET_MAP = buildVarBudgetMap();
 
 // ════════════════ MERCHANT RULES ════════════════
 // Rule format: { pattern: 'woolworths', cat: 'Groceries', exact: false }
@@ -1500,6 +1558,10 @@ function getPersonActuals(tab, txns) {
 }
 
 function renderDashboard() {
+  // Refresh dynamic categories and budget map
+  VAR_CATS = getVarCats();
+  VAR_BUDGET_MAP = buildVarBudgetMap();
+
   const selEl = document.getElementById('dash-month-sel');
   if (!selEl) return;
   const { year, month } = getSelectedMonth('dash-month-sel');
@@ -1655,10 +1717,7 @@ function renderCategoryAlerts(year, month, tab, expenses) {
   } else {
     VAR_CATS.forEach(function(c) { varBudget[c] = 0; });
     state.budgetItems.filter(function(i) { return i.type === 'Variable'; }).forEach(function(item) {
-      var catKey = 'Other';
-      for (var v = 0; v < VAR_CATS.length; v++) {
-        if (item.desc.toLowerCase().indexOf(VAR_CATS[v].toLowerCase().replace(' / ',' ').split(' ')[0]) !== -1) { catKey = VAR_CATS[v]; break; }
-      }
+      var catKey = item.varCat || mapBudgetItemToVarCat(item.desc);
       var person = tab === 'blayne' ? 'Blayne' : 'Sophie';
       var share = 0;
       if (item.owner === person) share = item.monthly || 0;
@@ -1934,27 +1993,29 @@ function getItemShare(item, mortMonthly) {
 function getPersonVarBudget() {
   if (trackerTab === 'combined') return VAR_BUDGET_MAP;
   const person = trackerTab === 'blayne' ? 'Blayne' : 'Sophie';
+  const cats = getVarCats();
   const result = {};
-  VAR_CATS.forEach(c => result[c] = 0);
+  cats.forEach(c => result[c] = 0);
   state.budgetItems.forEach(item => {
     if (item.type !== 'Variable') return;
-    const cat = item.cat === 'Living' || item.cat === 'Transport' ? item.desc : item.cat;
-    // Map budget item descriptions to VAR_CATS keys
-    const catKey = VAR_CATS.find(vc => item.desc.toLowerCase().includes(vc.toLowerCase().split(' ')[0])) || 'Other';
+    var catKey = item.varCat || mapBudgetItemToVarCat(item.desc);
     let share = 0;
     if (item.owner === person) share = item.monthly || 0;
     else if (item.owner === 'Shared') share = (item.monthly || 0) * 0.5;
     if (result[catKey] !== undefined) result[catKey] += share;
   });
-  // Fallback: use proportional split of combined VAR_BUDGET_MAP
   const hasAny = Object.values(result).some(v => v > 0);
   if (!hasAny) {
-    VAR_CATS.forEach(c => result[c] = (VAR_BUDGET_MAP[c] || 0) * 0.5);
+    cats.forEach(c => result[c] = (VAR_BUDGET_MAP[c] || 0) * 0.5);
   }
   return result;
 }
 
 function renderTracker() {
+  // Refresh dynamic categories and budget map
+  VAR_CATS = getVarCats();
+  VAR_BUDGET_MAP = buildVarBudgetMap();
+
   const { year, month } = getSelectedMonth('tracker-month-sel');
   const cfg = state.config;
   const incAll = getIncome(cfg.blayneAmt, cfg.blayneFreq, cfg.sophieAmt, cfg.sophieFreq);
@@ -2045,14 +2106,10 @@ function renderTracker() {
   const varBudgetMap = tab === 'combined' ? VAR_BUDGET_MAP : (() => {
     // Build per-person variable budget from budget items
     const map = {};
-    VAR_CATS.forEach(c => map[c] = 0);
+    getVarCats().forEach(c => map[c] = 0);
     state.budgetItems.filter(i => i.type === 'Variable').forEach(item => {
       const share = getItemShare(item, 0);
-      // Match item to closest VAR_CAT
-      let bestCat = 'Other';
-      for (const vc of VAR_CATS) {
-        if (item.desc.toLowerCase().includes(vc.toLowerCase().replace(' / ',' ').split(' ')[0])) { bestCat = vc; break; }
-      }
+      const bestCat = item.varCat || mapBudgetItemToVarCat(item.desc);
       if (map[bestCat] !== undefined) map[bestCat] += share;
       else map['Other'] += share;
     });
@@ -2410,6 +2467,10 @@ function openAddExpense() {
   document.getElementById('exp-date').value = `${now2.getFullYear()}-${String(now2.getMonth()+1).padStart(2,'0')}-${String(now2.getDate()).padStart(2,'0')}`;
   document.getElementById('exp-desc').value = '';
   document.getElementById('exp-amount').value = '';
+  // Populate categories dynamically
+  var catSel = document.getElementById('exp-cat');
+  var cats = getVarCats();
+  catSel.innerHTML = cats.map(function(c) { return '<option>' + c + '</option>'; }).join('');
   document.getElementById('modal-expense').classList.add('open');
 }
 
