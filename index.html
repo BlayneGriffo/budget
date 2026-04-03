@@ -895,7 +895,7 @@ Or copy straight from your banking app — any format is fine."
           <div style="margin-bottom:8px;">3. AI categorises each transaction against your budget</div>
           <div style="margin-bottom:8px;">4. Review and confirm — same as manual import</div>
           <div style="margin-top:12px;padding:10px 12px;background:var(--green-bg);border-radius:8px;font-size:12px;color:var(--green);">✓ Connected to Blayne's Up account (personal + 2UP)</div>
-          <div style="margin-top:6px;padding:10px 12px;background:#fef3cd;border-radius:8px;font-size:12px;color:#856404;">⚠ Sophie's token not yet configured</div>
+          <div style="margin-top:6px;padding:10px 12px;background:var(--green-bg);border-radius:8px;font-size:12px;color:var(--green);">✓ Connected to Sophie's Up account</div>
         </div>
       </div>
     </div>
@@ -2782,7 +2782,7 @@ If you cannot read any transactions, return an empty array [].`;
 
     document.getElementById('imp-status-text').textContent = 'AI is reading your transactions…';
 
-    const resp = await fetch('/.netlify/functions/ai-proxy', {
+    const resp = await fetch('/api/ai-proxy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -3357,15 +3357,19 @@ document.addEventListener('DOMContentLoaded', function() {
 // Sophie can add her token here once she generates one from the Up app
 const UP_TOKENS = {
   'Blayne':  'up:yeah:shUan5cCPYWRnlstTzSunX5EXjM4cmlqFJBZmH842CFBD4HFqvaZwSeBA2gb4xYBJZZ64cj3XyA8vtV0h8svQ0avqGsEhRhtLd6ncfcNAjtpGO6dCM9winUKD31yBYB8',
-  'Sophie':  '',   // Add Sophie's token here once she generates it
+  'Sophie':  'up:yeah:C7HT64fw23fEcMv994TCKdP48k4mEnd5eAS66FMbgwNqXFL5jSnr8ignHiTcCmvowVME3PiYuKPgxopBk1v1tSpKOwteaLeobT7BwyjcVaitj7UmqAVZ0SJgd1ytg0uk',
   'Shared':  'up:yeah:shUan5cCPYWRnlstTzSunX5EXjM4cmlqFJBZmH842CFBD4HFqvaZwSeBA2gb4xYBJZZ64cj3XyA8vtV0h8svQ0avqGsEhRhtLd6ncfcNAjtpGO6dCM9winUKD31yBYB8',  // 2Up uses Blayne's token
 };
 
 // Auto-sync settings
-const AUTOSYNC_INTERVAL_HOURS = 4; // Sync if last sync was more than this many hours ago
+const AUTOSYNC_INTERVAL_HOURS = 24; // Sync once per day to conserve Netlify function invocations
 
 // Proxy URL — routes through Netlify Function to avoid CORS
-const UP_PROXY = '/.netlify/functions/up-proxy';
+const UP_PROXY = '/api/up-proxy';
+
+// Session cache to reduce function invocations
+var _upAccountsCache = {};  // { token_hash: { data: [...], ts: timestamp } }
+var _UP_CACHE_TTL = 1000 * 60 * 30; // 30 minutes
 
 async function upGet(path, token) {
   const r = await fetch(UP_PROXY + '?path=' + encodeURIComponent(path), {
@@ -3376,6 +3380,18 @@ async function upGet(path, token) {
     throw new Error(err.error || 'Up API error: ' + r.status);
   }
   return await r.json();
+}
+
+// Cached version for account listing
+async function upGetAccountsCached(token) {
+  var cacheKey = token.slice(-8); // Last 8 chars as key
+  var cached = _upAccountsCache[cacheKey];
+  if (cached && (Date.now() - cached.ts) < _UP_CACHE_TTL) {
+    return cached.data;
+  }
+  var result = await upGet('/accounts', token);
+  _upAccountsCache[cacheKey] = { data: result, ts: Date.now() };
+  return result;
 }
 
 async function upGetAll(path, token) {
@@ -3400,10 +3416,13 @@ async function fetchUpRawTransactions(owner, since, until) {
   const token = UP_TOKENS[owner];
   if (!token) return [];
 
+  // Use cached accounts list to save function invocations
+  var accountsData = await upGetAccountsCached(token);
+  var allAccounts = accountsData.data || [];
+
   let txns = [];
   if (owner === 'Shared') {
-    const accountsData = await upGet('/accounts?filter[ownershipType]=JOINT', token);
-    const jointAccounts = (accountsData.data || []);
+    var jointAccounts = allAccounts.filter(function(a) { return a.attributes.ownershipType === 'JOINT'; });
     for (const acct of jointAccounts) {
       const path = '/accounts/' + acct.id + '/transactions?filter[status]=SETTLED&filter[since]=' + encodeURIComponent(since) + '&filter[until]=' + encodeURIComponent(until) + '&page[size]=100';
       const acctTxns = await upGetAll(path, token);
@@ -3411,8 +3430,7 @@ async function fetchUpRawTransactions(owner, since, until) {
     }
   } else {
     // Personal accounts — filter to INDIVIDUAL only (not JOINT)
-    const accountsData = await upGet('/accounts?filter[ownershipType]=INDIVIDUAL', token);
-    const personalAccounts = (accountsData.data || []);
+    var personalAccounts = allAccounts.filter(function(a) { return a.attributes.ownershipType === 'INDIVIDUAL'; });
     for (const acct of personalAccounts) {
       const path = '/accounts/' + acct.id + '/transactions?filter[status]=SETTLED&filter[since]=' + encodeURIComponent(since) + '&filter[until]=' + encodeURIComponent(until) + '&page[size]=100';
       const acctTxns = await upGetAll(path, token);
@@ -3571,21 +3589,52 @@ async function runAutoSync() {
   var until = now.toISOString();
 
   var allNew = [];
-  var accountsToSync = [];
-
-  // Build list of accounts to sync
-  if (UP_TOKENS['Blayne']) accountsToSync.push({ owner: 'Blayne', token: UP_TOKENS['Blayne'] });
-  if (UP_TOKENS['Shared']) accountsToSync.push({ owner: 'Shared', token: UP_TOKENS['Shared'] });
-  if (UP_TOKENS['Sophie']) accountsToSync.push({ owner: 'Sophie', token: UP_TOKENS['Sophie'] });
 
   try {
-    for (var a = 0; a < accountsToSync.length; a++) {
-      var acctInfo = accountsToSync[a];
-      progressText.textContent = 'Syncing ' + acctInfo.owner + '\'s account...';
-      var rawTxns = await fetchUpRawTransactions(acctInfo.owner, since, until);
-      var filtered = filterUpTransactions(rawTxns);
-      var parsed = parseUpTransactions(filtered, acctInfo.owner);
-      allNew = allNew.concat(parsed);
+    // OPTIMISATION: Blayne and Shared use the same token, so fetch all accounts ONCE
+    // and split by ownershipType to avoid duplicate API calls
+    var blayneToken = UP_TOKENS['Blayne'];
+    var sophieToken = UP_TOKENS['Sophie'];
+
+    if (blayneToken) {
+      progressText.textContent = 'Fetching accounts...';
+      // Single cached call to get ALL accounts (personal + joint)
+      var allAccountsData = await upGetAccountsCached(blayneToken);
+      var allAccounts = allAccountsData.data || [];
+
+      // Split into personal and joint
+      var personalAccounts = allAccounts.filter(function(a) { return a.attributes.ownershipType === 'INDIVIDUAL'; });
+      var jointAccounts = allAccounts.filter(function(a) { return a.attributes.ownershipType === 'JOINT'; });
+
+      // Fetch Blayne's personal transactions
+      if (personalAccounts.length > 0) {
+        progressText.textContent = 'Syncing Blayne\'s account...';
+        for (var pa = 0; pa < personalAccounts.length; pa++) {
+          var path = '/accounts/' + personalAccounts[pa].id + '/transactions?filter[status]=SETTLED&filter[since]=' + encodeURIComponent(since) + '&filter[until]=' + encodeURIComponent(until) + '&page[size]=100';
+          var paTxns = await upGetAll(path, blayneToken);
+          var paFiltered = filterUpTransactions(paTxns);
+          allNew = allNew.concat(parseUpTransactions(paFiltered, 'Blayne'));
+        }
+      }
+
+      // Fetch 2UP joint transactions
+      if (jointAccounts.length > 0) {
+        progressText.textContent = 'Syncing 2UP joint account...';
+        for (var ja = 0; ja < jointAccounts.length; ja++) {
+          var jPath = '/accounts/' + jointAccounts[ja].id + '/transactions?filter[status]=SETTLED&filter[since]=' + encodeURIComponent(since) + '&filter[until]=' + encodeURIComponent(until) + '&page[size]=100';
+          var jaTxns = await upGetAll(jPath, blayneToken);
+          var jaFiltered = filterUpTransactions(jaTxns);
+          allNew = allNew.concat(parseUpTransactions(jaFiltered, 'Shared'));
+        }
+      }
+    }
+
+    // Sophie — separate token, separate call (only if configured)
+    if (sophieToken) {
+      progressText.textContent = 'Syncing Sophie\'s account...';
+      var sophieTxns = await fetchUpRawTransactions('Sophie', since, until);
+      var sophieFiltered = filterUpTransactions(sophieTxns);
+      allNew = allNew.concat(parseUpTransactions(sophieFiltered, 'Sophie'));
     }
 
     // Deduplicate — remove transactions already in tracker for this month
@@ -4163,7 +4212,7 @@ async function initApp() {
         }
       }
     } catch(e) {}
-  }, 30000);
+  }, 120000); // Poll every 2 minutes (was 30s) to conserve bandwidth
 }
 
 // ── Boot: check for saved session, otherwise show login ──────────────────
