@@ -1459,7 +1459,26 @@ function getTotalVariable(budgetItems) {
 function getMonthKey(year, month) { return `${year}-${String(month+1).padStart(2,'0')}`; }
 
 function getMonthTxns(year, month) {
-  return state.transactions[getMonthKey(year, month)] || [];
+  var primary = getMonthKey(year, month);                    // "2026-03"
+  if (state.transactions[primary] && state.transactions[primary].length > 0) {
+    return state.transactions[primary];
+  }
+  // Check alternate key formats from legacy code
+  var alt1 = year + '-' + month;                             // "2026-2"
+  var alt2 = year + '-' + (month + 1);                       // "2026-3"
+  var alt3 = year + '-' + String(month).padStart(2, '0');    // "2026-02"
+  var alts = [alt1, alt2, alt3];
+  for (var a = 0; a < alts.length; a++) {
+    var txns = state.transactions[alts[a]];
+    if (txns && txns.length > 0) {
+      console.log('[Budget] Found transactions under legacy key "' + alts[a] + '", migrating to "' + primary + '"');
+      state.transactions[primary] = txns;
+      delete state.transactions[alts[a]];
+      try { saveState(); } catch(e) {}
+      return txns;
+    }
+  }
+  return state.transactions[primary] || [];
 }
 
 function fmt(n) { return '$' + Math.abs(Math.round(n)).toLocaleString(); }
@@ -2510,7 +2529,7 @@ function saveExpense() {
   if (!date || !desc || isNaN(amount) || amount <= 0) { alert('Please fill in all fields'); return; }
 
   const [y, m] = date.split('-').map(Number);
-  const key = `${y}-${m}`;
+  const key = getMonthKey(y, m - 1); // m from date is 1-indexed, getMonthKey expects 0-indexed
   if (!state.transactions[key]) state.transactions[key] = [];
   state.transactions[key].push({ date, desc, cat, owner, amount });
   saveState();
@@ -2520,9 +2539,8 @@ function saveExpense() {
 }
 
 function deleteTransaction(key, idx) {
-  const [y, m] = key.split('-').map(Number);
-  const mk = `${y}-${m}`;
-  state.transactions[mk].splice(idx, 1);
+  // key is already in the correct format from the tracker render
+  state.transactions[key].splice(idx, 1);
   saveState();
   renderTracker();
   renderDashboard();
@@ -3772,10 +3790,11 @@ async function runAutoSync() {
 }
 
 function saveAutoSyncTransactions(txns) {
-  var now = new Date();
-  var mk = getMonthKey(now.getFullYear(), now.getMonth());
-  if (!state.transactions[mk]) state.transactions[mk] = [];
   txns.forEach(function(t) {
+    // Save each transaction under its actual date's month, not the current month
+    var parts = t.date.split('-').map(Number); // "2026-03-15" → [2026, 3, 15]
+    var mk = getMonthKey(parts[0], parts[1] - 1); // parts[1] is 1-indexed, getMonthKey expects 0-indexed
+    if (!state.transactions[mk]) state.transactions[mk] = [];
     state.transactions[mk].push({
       date: t.date,
       desc: t.desc,
@@ -4248,10 +4267,49 @@ populateImportMonthSel();
 <script>
 // ── App initialisation after login ───────────────────────────────────────
 
+// ── Fix misdated transaction keys ──
+// Checks each transaction's actual date against the key it's stored under.
+// Moves any transaction to the correct month key based on its date.
+function migrateTransactionKeys() {
+  if (!state.transactions) return;
+  var moved = 0;
+  var keys = Object.keys(state.transactions);
+  keys.forEach(function(key) {
+    var txns = state.transactions[key];
+    if (!Array.isArray(txns) || txns.length === 0) return;
+    // Check each transaction — does its date match this key?
+    var keep = [];
+    txns.forEach(function(t) {
+      if (!t.date) { keep.push(t); return; }
+      var parts = t.date.split('-').map(Number);
+      if (parts.length < 2) { keep.push(t); return; }
+      var correctKey = getMonthKey(parts[0], parts[1] - 1); // date month is 1-indexed
+      if (correctKey === key) {
+        keep.push(t); // Already in the right place
+      } else {
+        // Move to correct key
+        if (!state.transactions[correctKey]) state.transactions[correctKey] = [];
+        state.transactions[correctKey].push(t);
+        moved++;
+      }
+    });
+    state.transactions[key] = keep;
+  });
+  if (moved > 0) {
+    console.log('[Budget] Migrated ' + moved + ' transactions to correct month keys');
+    saveState();
+  }
+}
+
 async function initApp() {
   showApp();
   addSignOutButton();
   await loadFromSupabase();
+
+  // One-time migration: fix transactions saved under wrong month keys
+  // (e.g. March transactions stored under "2026-04" instead of "2026-03")
+  migrateTransactionKeys();
+
   renderDashboard();
 
   // Auto-sync with Up Bank if enough time has passed
