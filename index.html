@@ -1121,8 +1121,8 @@ function mapBudgetItemToVarCat(desc) {
   return 'Other';
 }
 
-// Backward compat: VAR_BUDGET_MAP as a getter that always computes fresh
-var VAR_BUDGET_MAP = buildVarBudgetMap();
+// Backward compat: VAR_BUDGET_MAP — initialized lazily after state is loaded
+var VAR_BUDGET_MAP = {};
 
 // ════════════════ MERCHANT RULES ════════════════
 // Rule format: { pattern: 'woolworths', cat: 'Groceries', exact: false }
