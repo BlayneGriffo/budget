@@ -2899,7 +2899,7 @@ function renderImportResults(results, monthLabel) {
     const rememberBtn = '<button onclick="rememberRule(' + i + ')" title="Remember this category for \''+r.desc+'\'" style="font-family:var(--font);font-size:10px;padding:3px 7px;border:1px solid var(--border2);border-radius:5px;background:var(--green-bg);color:var(--green);cursor:pointer;white-space:nowrap;">💾 Remember</button>';
 
     return '<tr id="imp-row-' + i + '">' +
-      '<td><input type="checkbox" class="imp-check" data-idx="' + i + '" checked></td>' +
+      '<td><input type="checkbox" class="imp-chk" data-idx="' + i + '" checked></td>' +
       '<td style="font-size:12px;color:var(--text2);">' + r.date + '</td>' +
       '<td style="font-size:12px;max-width:200px;">' +
         '<div style="font-weight:500;">' + (r.desc||'') + '</div>' +
