@@ -1584,6 +1584,7 @@ function renderDashboard() {
   const surplus = incomeData.total - expenses.total;
 
   const txns = getMonthTxns(year, month);
+  console.log('[Dashboard] Rendering for', year, MONTHS_FULL[month], '- txns found:', txns.length, '- key:', getMonthKey(year, month));
   const actualSpend = getPersonActuals(tab, txns);
   const remainingVar = expenses.variable - actualSpend;
   const projSurplus = incomeData.total - expenses.fixed - actualSpend;
@@ -2038,6 +2039,7 @@ function renderTracker() {
   const mortFn = calcMortgagePmt(cfg.loanBalance, cfg.rate);
   const mortMonthly = mortFn * 2;
   const allTxns = getMonthTxns(year, month);
+  console.log('[Tracker] Rendering for', year, MONTHS_FULL[month], '- txns found:', allTxns.length, '- key:', getMonthKey(year, month));
   const tab = trackerTab;
   const person = tab === 'blayne' ? 'Blayne' : tab === 'sophie' ? 'Sophie' : null;
 
@@ -3007,6 +3009,11 @@ function confirmImport() {
 
   saveState();
 
+  // Log for debugging
+  console.log('[Budget] Saved ' + added + ' transactions to key: ' + mk);
+  console.log('[Budget] Total transactions for ' + mk + ':', (state.transactions[mk] || []).length);
+  console.log('[Budget] Transaction keys in state:', Object.keys(state.transactions));
+
   // Reset UI
   document.getElementById('imp-results').style.display = 'none';
   document.getElementById('imp-file-preview').style.display = 'none';
@@ -3017,9 +3024,16 @@ function confirmImport() {
 
   clearImportForm();
 
-  // Refresh tracker + dashboard in background
-  if (document.getElementById('page-tracker').classList.contains('active')) renderTracker();
-  if (document.getElementById('page-dashboard').classList.contains('active')) renderDashboard();
+  // ALWAYS re-render dashboard and tracker with fresh data
+  // (previously only rendered if they were visible, which missed updates)
+  // Also sync the month selectors to show the imported month
+  var importedMonthVal = yr + '-' + mo;
+  var dashSel = document.getElementById('dash-month-sel');
+  var trkSel = document.getElementById('tracker-month-sel');
+  if (dashSel) dashSel.value = importedMonthVal;
+  if (trkSel) trkSel.value = importedMonthVal;
+  renderDashboard();
+  renderTracker();
 }
 
 function cancelImport() {
