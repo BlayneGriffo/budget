@@ -239,6 +239,15 @@
     .slider-val { margin-left: auto; }
     .tbl { font-size: 12px; }
     .tbl th, .tbl td { padding: 7px 7px; }
+    .tbl .num { font-size: 11px; }
+    /* Hide less important columns on very small screens */
+    .hide-mobile-sm { display: none; }
+    /* Make variable table more compact on mobile */
+    #tracker-var-table th:nth-child(4),
+    #tracker-var-table td:nth-child(4) { display: none; }
+    /* Ensure tracker header wraps nicely */
+    #page-tracker > .flex { gap: 8px; }
+    #page-tracker .btn-primary { font-size: 12px; padding: 7px 12px; }
     .fc-table th, .fc-table td { padding: 7px 6px; font-size: 11px; }
     .entry-row { grid-template-columns: 1fr 100px; }
     .entry-row .hide-mobile { display: none; }
@@ -1664,12 +1673,13 @@ function renderDashboard() {
   const txnsEl = document.getElementById('dash-transactions');
   if (txnsEl) {
     const filtered = tab === 'combined' ? txns : txns.filter(t => t.owner === (tab === 'blayne' ? 'Blayne' : 'Sophie') || t.owner === 'Shared');
-    const recent = [...filtered].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6);
+    const recent = [...filtered].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 10);
     if (recent.length === 0) {
-      txnsEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text3);font-size:13px;">No transactions logged this month.</div>';
+      txnsEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text3);font-size:13px;">No transactions logged for ' + MONTHS_FULL[month] + ' ' + year + '.</div>';
     } else {
-      txnsEl.innerHTML = '<table class="tbl"><thead><tr><th>date</th><th>description</th><th>category</th><th>owner</th><th class="num">amount</th></tr></thead><tbody>' +
-        recent.map(t => '<tr><td>' + t.date + '</td><td>' + t.desc + '</td><td><span class="badge badge-gray">' + t.cat + '</span></td><td>' + t.owner + '</td><td class="num">' + fmtDec(t.amount) + '</td></tr>').join('') +
+      txnsEl.innerHTML = '<div style="font-size:12px;color:var(--text3);margin-bottom:8px;">' + filtered.length + ' transaction' + (filtered.length === 1 ? '' : 's') + ' in ' + MONTHS_FULL[month] + ' ' + year + ' · showing latest ' + recent.length + '</div>' +
+        '<table class="tbl"><thead><tr><th>date</th><th>description</th><th class="hide-mobile-sm">category</th><th class="hide-mobile-sm">owner</th><th class="num">amount</th></tr></thead><tbody>' +
+        recent.map(t => '<tr><td>' + t.date.slice(5) + '</td><td>' + t.desc + '</td><td class="hide-mobile-sm"><span class="badge badge-gray">' + t.cat + '</span></td><td class="hide-mobile-sm">' + t.owner + '</td><td class="num">' + fmtDec(t.amount) + '</td></tr>').join('') +
         '</tbody></table>';
     }
   }
@@ -1884,14 +1894,20 @@ function renderTrendChart(tab) {
   const budgetTotal = expenses.total;
 
   const now2 = today();
+  const { year: selectedYear } = getSelectedMonth('dash-month-sel');
+  const chartYear = selectedYear || now2.getFullYear();
   const labels = MONTHS.slice(0, 12);
   const budgetData = [], actualData = [], surplusData = [];
 
+  // Update chart title with selected year
+  const chartTitle = document.getElementById('dash-chart-title');
+  if (chartTitle) chartTitle.textContent = 'month-by-month expenses — ' + chartYear;
+
   for (let m = 0; m < 12; m++) {
     budgetData.push(Math.round(budgetTotal));
-    const txns = getMonthTxns(2026, m);
-    const hasData = txns.length > 0 || (state.directActuals && state.directActuals[getMonthKey(2026, m)]);
-    if (hasData || (2026 < now2.getFullYear()) || (2026 === now2.getFullYear() && m <= now2.getMonth())) {
+    const txns = getMonthTxns(chartYear, m);
+    const hasData = txns.length > 0 || (state.directActuals && state.directActuals[getMonthKey(chartYear, m)]);
+    if (hasData || (chartYear < now2.getFullYear()) || (chartYear === now2.getFullYear() && m <= now2.getMonth())) {
       const act = getPersonActuals(tab, txns);
       const monthExp = expenses.fixed + act;
       actualData.push(Math.round(monthExp));
