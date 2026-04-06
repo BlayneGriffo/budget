@@ -2057,11 +2057,20 @@ function renderTracker() {
     if (txnCatTotals[t.cat] !== undefined) txnCatTotals[t.cat] += t.amount * share;
     else txnCatTotals['Other'] += t.amount * share;
   });
-  // Direct overrides only apply in combined view (they're household-level figures)
+  // Transactions always take priority. Direct overrides are only used when
+  // there are ZERO transactions for that category AND a manual override exists.
   const catActuals = {};
   VAR_CATS.forEach(c => {
-    if (tab === 'combined' && directActuals[c] !== undefined) catActuals[c] = directActuals[c];
-    else catActuals[c] = txnCatTotals[c] || 0;
+    var txnTotal = txnCatTotals[c] || 0;
+    if (txnTotal > 0) {
+      // Real transactions exist — use them (ignore any stale direct override)
+      catActuals[c] = txnTotal;
+    } else if (tab === 'combined' && directActuals[c] !== undefined && directActuals[c] > 0) {
+      // No transactions, but there's a manual direct entry — use it
+      catActuals[c] = directActuals[c];
+    } else {
+      catActuals[c] = 0;
+    }
   });
   const totalActual = VAR_CATS.reduce((s, c) => s + (catActuals[c] || 0), 0);
   const surplus = income - totalFixed - totalActual;
@@ -2953,12 +2962,22 @@ function confirmImport() {
   const mk = getMonthKey(yr, mo);
   if (!state.transactions[mk]) state.transactions[mk] = [];
 
+  // Build existing transaction keys for dedup
+  var existingKeys = {};
+  state.transactions[mk].forEach(function(t) {
+    existingKeys[t.date + '|' + t.desc + '|' + t.amount] = true;
+  });
+
   let added = 0;
+  let skipped = 0;
   document.querySelectorAll('.imp-chk').forEach(cb => {
     if (!cb.checked) return;
     const i = parseInt(cb.dataset.idx);
     const t = importResults[i];
     if (!t) return;
+    // Skip if already exists
+    var key = t.date + '|' + t.desc + '|' + parseFloat(t.amount);
+    if (existingKeys[key]) { skipped++; return; }
     state.transactions[mk].push({
       date: t.date,
       desc: t.desc,
@@ -2966,6 +2985,7 @@ function confirmImport() {
       owner: t.owner,
       amount: parseFloat(t.amount)
     });
+    existingKeys[key] = true; // Prevent dupes within this batch too
     added++;
   });
 
@@ -2977,7 +2997,7 @@ function confirmImport() {
   document.getElementById('imp-analyse-btn').style.display = 'none';
   document.getElementById('imp-status').style.display = 'block';
   document.getElementById('imp-spinner').style.display = 'none';
-  document.getElementById('imp-status-text').textContent = '✓ ' + added + ' transactions saved to ' + MONTHS_FULL[mo] + ' ' + yr + '. Head to Monthly Tracker to review.';
+  document.getElementById('imp-status-text').textContent = '✓ ' + added + ' transactions saved to ' + MONTHS_FULL[mo] + ' ' + yr + (skipped > 0 ? ' (' + skipped + ' duplicates skipped)' : '') + '. Head to Monthly Tracker to review.';
 
   clearImportForm();
 
@@ -3529,12 +3549,32 @@ async function fetchUpTransactions() {
     setStatus('Categorising ' + filtered.length + ' transactions...', true);
     const parsed = parseUpTransactions(filtered, owner);
 
+    // Deduplicate: remove transactions already saved in the tracker for this month
+    const mk = getMonthKey(yr, mo);
+    const existing = state.transactions[mk] || [];
+    const existingKeys = {};
+    existing.forEach(function(t) {
+      existingKeys[t.date + '|' + t.desc + '|' + t.amount] = true;
+    });
+    const deduped = parsed.filter(function(t) {
+      return !existingKeys[t.date + '|' + t.desc + '|' + t.amount];
+    });
+
+    if (deduped.length === 0) {
+      setStatus('All ' + parsed.length + ' transactions are already in your tracker. Nothing new to import.');
+      btn.disabled = false; btn.textContent = 'Fetch from Up Bank';
+      return;
+    }
+
+    var skipped = parsed.length - deduped.length;
+    var skippedMsg = skipped > 0 ? ' (' + skipped + ' already imported, skipped)' : '';
+
     statusEl.style.display = 'none';
     btn.disabled = false;
     btn.textContent = 'Fetch from Up Bank';
 
-    importResults = parsed;
-    renderImportResults(parsed, MONTHS_FULL[mo] + ' ' + yr);
+    importResults = deduped;
+    renderImportResults(deduped, MONTHS_FULL[mo] + ' ' + yr + skippedMsg);
     document.getElementById('imp-month-sel').value = monthSel.value;
 
   } catch(e) {
