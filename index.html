@@ -573,6 +573,95 @@
   <div class="metrics" id="cf-metrics"></div>
 
   <div id="cf-loans-wrap"></div>
+
+  <!-- ════════════════ EV vs PETROL CALCULATOR ════════════════ -->
+  <div class="card mb-16" style="margin-top:24px;">
+    <div class="card-title">⚡ EV vs Petrol — is switching worth it?</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:14px;">Compare running costs of your current petrol car against an EV. Adjust the sliders to model your situation. NSW stamp duty exemption is included for EVs under $78k. The federal $3,000 EV rebate ended in 2024 so it's not included by default — toggle on if applicable to you.</div>
+
+    <div class="grid-2" style="gap:16px;">
+      <div>
+        <div style="font-size:13px;font-weight:600;color:#BA7517;margin-bottom:8px;">⛽ Petrol car</div>
+
+        <div class="slider-row" style="margin-bottom:10px;">
+          <span class="slider-lbl">Fuel economy (L/100km)</span>
+          <input type="range" id="ev-petrol-l100" min="4" max="15" step="0.1" value="8.5" oninput="updateEvCalc()">
+          <span class="slider-val" id="ev-petrol-l100-v">8.5 L</span>
+        </div>
+
+        <div class="slider-row" style="margin-bottom:10px;">
+          <span class="slider-lbl">Petrol price ($/L)</span>
+          <input type="range" id="ev-petrol-price" min="1.50" max="2.80" step="0.05" value="1.95" oninput="updateEvCalc()">
+          <span class="slider-val" id="ev-petrol-price-v">$1.95</span>
+        </div>
+
+        <div class="slider-row" style="margin-bottom:10px;">
+          <span class="slider-lbl">Annual servicing</span>
+          <input type="range" id="ev-petrol-service" min="200" max="2000" step="50" value="800" oninput="updateEvCalc()">
+          <span class="slider-val" id="ev-petrol-service-v">$800</span>
+        </div>
+      </div>
+
+      <div>
+        <div style="font-size:13px;font-weight:600;color:#1D9E75;margin-bottom:8px;">⚡ EV</div>
+
+        <div class="slider-row" style="margin-bottom:10px;">
+          <span class="slider-lbl">Energy use (kWh/100km)</span>
+          <input type="range" id="ev-kwh100" min="12" max="25" step="0.5" value="17" oninput="updateEvCalc()">
+          <span class="slider-val" id="ev-kwh100-v">17 kWh</span>
+        </div>
+
+        <div class="slider-row" style="margin-bottom:10px;">
+          <span class="slider-lbl">Electricity ($/kWh)</span>
+          <input type="range" id="ev-elec-price" min="0.10" max="0.50" step="0.01" value="0.28" oninput="updateEvCalc()">
+          <span class="slider-val" id="ev-elec-price-v">$0.28</span>
+        </div>
+
+        <div class="slider-row" style="margin-bottom:10px;">
+          <span class="slider-lbl">Annual servicing</span>
+          <input type="range" id="ev-ev-service" min="100" max="1000" step="50" value="350" oninput="updateEvCalc()">
+          <span class="slider-val" id="ev-ev-service-v">$350</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="border-top:1px solid var(--border);margin:14px 0;padding-top:14px;">
+      <div style="font-size:13px;font-weight:600;margin-bottom:8px;">Driving & purchase</div>
+
+      <div class="slider-row" style="margin-bottom:10px;">
+        <span class="slider-lbl">Annual km driven</span>
+        <input type="range" id="ev-km-year" min="5000" max="40000" step="500" value="15000" oninput="updateEvCalc()">
+        <span class="slider-val" id="ev-km-year-v">15,000 km</span>
+      </div>
+
+      <div class="slider-row" style="margin-bottom:10px;">
+        <span class="slider-lbl">Petrol car purchase price</span>
+        <input type="range" id="ev-petrol-cost" min="0" max="80000" step="500" value="35000" oninput="updateEvCalc()">
+        <span class="slider-val" id="ev-petrol-cost-v">$35,000</span>
+      </div>
+
+      <div class="slider-row" style="margin-bottom:10px;">
+        <span class="slider-lbl">EV purchase price</span>
+        <input type="range" id="ev-ev-cost" min="30000" max="120000" step="500" value="55000" oninput="updateEvCalc()">
+        <span class="slider-val" id="ev-ev-cost-v">$55,000</span>
+      </div>
+
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);margin-top:10px;cursor:pointer;">
+        <input type="checkbox" id="ev-rebate" onchange="updateEvCalc()" style="accent-color:var(--accent);">
+        <span>Apply $3,000 federal EV rebate (only if eligible — most schemes ended)</span>
+      </label>
+      <div style="font-size:11px;color:var(--text3);margin-top:6px;">✓ NSW stamp duty exemption automatically applied if EV price is under $78,000</div>
+    </div>
+
+    <div class="metrics" id="ev-results" style="margin-top:16px;"></div>
+
+    <div class="card" style="margin-top:14px;background:var(--surface2);">
+      <div class="card-title">10-year cumulative cost</div>
+      <canvas id="ev-chart" height="200"></canvas>
+    </div>
+
+    <div id="ev-verdict" style="margin-top:14px;padding:14px 18px;border-radius:8px;font-size:14px;line-height:1.5;"></div>
+  </div>
 </div>
 
 <!-- ADD CAR LOAN MODAL -->
@@ -817,6 +906,7 @@
         <option>Health & Medical</option><option>Personal Care</option><option>Clothing</option>
         <option>Entertainment</option><option>Hobbies</option><option>Gifts & Birthdays</option>
         <option>Insurance</option><option>Personal Spending</option>
+        <option>House</option>
         <option>Home Maintenance</option><option>Utilities</option>
         <option>Subscriptions</option><option>Other</option>
       </select>
@@ -1141,7 +1231,7 @@ const DEFAULT_BUDGET = [
   {cat:'Financial',desc:'Super contributions (Blayne)',owner:'Blayne',freq:'monthly',type:'Fixed',amt:400,monthly:400},
 ];
 
-const DEFAULT_VAR_CATS = ['Groceries','Dining Out','Takeaway','Alcohol / Pub','Fuel','Transport','Health & Medical','Personal Care','Clothing','Entertainment','Hobbies','Holiday','Gifts & Birthdays','Insurance','Personal Spending','Home Maintenance','Utilities','Subscriptions','Other'];
+const DEFAULT_VAR_CATS = ['Groceries','Dining Out','Takeaway','Alcohol / Pub','Fuel','Transport','Health & Medical','Personal Care','Clothing','Entertainment','Hobbies','Holiday','Gifts & Birthdays','Insurance','Personal Spending','House','Home Maintenance','Utilities','Subscriptions','Other'];
 
 // Dynamic: build VAR_CATS from defaults + any custom categories found in budget items or transactions
 function getVarCats() {
@@ -1210,6 +1300,7 @@ function mapBudgetItemToVarCat(desc) {
   if (d.indexOf('cloth') !== -1 || d.indexOf('shoes') !== -1) return 'Clothing';
   if (d.indexOf('movie') !== -1 || d.indexOf('concert') !== -1 || d.indexOf('event') !== -1 || d.indexOf('entertainment') !== -1 || d.indexOf('sport') !== -1 || d.indexOf('cricket') !== -1) return 'Entertainment';
   if (d.indexOf('home maintenance') !== -1 || d.indexOf('sinking fund') !== -1 || d.indexOf('bunnings') !== -1) return 'Home Maintenance';
+  if (d.indexOf('house') !== -1 || d.indexOf('furniture') !== -1 || d.indexOf('homewares') !== -1 || d.indexOf('decor') !== -1) return 'House';
   if (d.indexOf('electric') !== -1 || d.indexOf('water') !== -1 || d.indexOf('gas') !== -1 || d.indexOf('utilit') !== -1) return 'Utilities';
   if (d.indexOf('subscri') !== -1 || d.indexOf('netflix') !== -1 || d.indexOf('spotify') !== -1 || d.indexOf('kayo') !== -1 || d.indexOf('disney') !== -1) return 'Subscriptions';
   return 'Other';
@@ -1319,10 +1410,23 @@ const DEFAULT_MERCHANT_RULES = [
   { pattern: 'stan.com', cat: 'Subscriptions' }, { pattern: 'kayo', cat: 'Subscriptions' },
   { pattern: 'hayu', cat: 'Subscriptions' }, { pattern: 'hbo', cat: 'Subscriptions' },
   { pattern: 'microsoft 365', cat: 'Subscriptions' }, { pattern: 'adobe', cat: 'Subscriptions' },
-  // Home Maintenance
+  // Home Maintenance — tools, hardware, repair-focused stores
   { pattern: 'bunnings', cat: 'Home Maintenance' }, { pattern: 'mitre 10', cat: 'Home Maintenance' },
-  { pattern: 'ikea', cat: 'Home Maintenance' }, { pattern: 'total tools', cat: 'Home Maintenance' },
-  { pattern: 'clark rubber', cat: 'Home Maintenance' },
+  { pattern: 'total tools', cat: 'Home Maintenance' },
+  { pattern: 'reece', cat: 'Home Maintenance' }, { pattern: 'tradelink', cat: 'Home Maintenance' },
+  // House — furniture, decor, homewares, lighting (the "stuff you put inside the house")
+  { pattern: 'ikea', cat: 'House' }, { pattern: 'spotlight', cat: 'House' },
+  { pattern: 'freedom', cat: 'House' }, { pattern: 'adairs', cat: 'House' },
+  { pattern: 'pillow talk', cat: 'House' }, { pattern: 'fantastic furniture', cat: 'House' },
+  { pattern: 'amart', cat: 'House' }, { pattern: 'beacon lighting', cat: 'House' },
+  { pattern: 'domayne', cat: 'House' }, { pattern: 'harvey norman', cat: 'House' },
+  { pattern: 'the good guys', cat: 'House' }, { pattern: 'kmart', cat: 'House' },
+  { pattern: 'big w', cat: 'House' }, { pattern: 'target', cat: 'House' },
+  { pattern: 'temple webster', cat: 'House' }, { pattern: 'temple & webster', cat: 'House' },
+  { pattern: 'west elm', cat: 'House' }, { pattern: 'pottery barn', cat: 'House' },
+  { pattern: 'early settler', cat: 'House' }, { pattern: 'oz design', cat: 'House' },
+  { pattern: 'nick scali', cat: 'House' }, { pattern: 'plush', cat: 'House' },
+  { pattern: 'clark rubber', cat: 'House' },
   // Utilities
   { pattern: 'ausgrid', cat: 'Utilities' }, { pattern: 'energyaustralia', cat: 'Utilities' },
   { pattern: 'origin energy', cat: 'Utilities' }, { pattern: 'agl', cat: 'Utilities' },
@@ -1783,12 +1887,33 @@ function setPersonTab(tab) {
   renderDashboard();
 }
 
-function getPersonIncome(tab) {
+function getPersonIncome(tab, year, month) {
   const cfg = state.config;
   const inc = getIncome(cfg.blayneAmt, cfg.blayneFreq, cfg.sophieAmt, cfg.sophieFreq);
   if (tab === 'blayne') return { total: inc.blayne, label: 'Blayne' };
   if (tab === 'sophie') return { total: inc.sophie, label: 'Sophie' };
-  if (tab === 'shared') return { total: inc.total, label: 'Shared (2UP)', blayne: inc.blayne, sophie: inc.sophie };
+  if (tab === 'shared') {
+    // Shared = 2UP joint account. "Income" here = actual transfers IN from Blayne and Sophie.
+    // Falls back to settlement data captured by auto-sync. If no settlement data
+    // exists for this month, falls back to 50/50 split of budgeted shared expenses
+    // so the dashboard isn't blank for historical months.
+    let blayneIn = 0, sophieIn = 0;
+    if (year != null && month != null && state.settlements) {
+      const mk = getMonthKey(year, month);
+      const s = state.settlements[mk];
+      if (s) {
+        blayneIn = parseFloat(s.blayneIn || 0) || 0;
+        sophieIn = parseFloat(s.sophieIn || 0) || 0;
+      }
+    }
+    return {
+      total: blayneIn + sophieIn,
+      label: 'Shared (2UP)',
+      blayne: blayneIn,
+      sophie: sophieIn,
+      isTransferData: true
+    };
+  }
   return { total: inc.total, label: 'Combined', blayne: inc.blayne, sophie: inc.sophie };
 }
 
@@ -1812,8 +1937,12 @@ function getPersonExpenses(tab, budgetItems, mortMonthly) {
   return { fixed, variable, total: fixed + variable };
 }
 
-function getPersonActuals(tab, txns) {
+// Sum actual transactions for a tab. By default, skips Fixed transactions
+// (which are already accounted for in the fixed budget) so the result represents
+// VARIABLE spending only. Pass includeFixed=true if you want everything.
+function getPersonActuals(tab, txns, includeFixed) {
   return txns.reduce((s, t) => {
+    if (!includeFixed && t.type === 'Fixed') return s;
     if (tab === 'combined') return s + t.amount;
     if (tab === 'shared') return s + (t.owner === 'Shared' ? t.amount : 0);
     if (tab === 'blayne') {
@@ -1843,7 +1972,7 @@ function renderDashboard() {
   const mortFn = calcMortgagePmt(cfg.loanBalance, cfg.rate);
   const mortMonthly = mortFn * 2;
 
-  const incomeData = getPersonIncome(tab);
+  const incomeData = getPersonIncome(tab, year, month);
   const expenses = getPersonExpenses(tab, state.budgetItems, mortMonthly);
   const surplus = incomeData.total - expenses.total;
 
@@ -1858,21 +1987,48 @@ function renderDashboard() {
   const dayOfMonth = (year === now2.getFullYear() && month === now2.getMonth()) ? now2.getDate() : daysInMonth;
   const pctThrough = dayOfMonth / daysInMonth;
 
+  // Clear tab descriptions so users understand what each view means
+  const tabDescriptions = {
+    combined: 'Both salaries vs all household spending',
+    shared: '2UP joint account only — transfers in vs joint spending',
+    blayne: "Blayne's salary vs his personal + 50% of shared",
+    sophie: "Sophie's salary vs her personal + 50% of shared"
+  };
   const tabLabel = incomeData.label;
   const subtitleEl = document.getElementById('dash-subtitle');
-  if (subtitleEl) subtitleEl.textContent = tabLabel + ' — ' + MONTHS_FULL[month] + ' ' + year;
+  if (subtitleEl) {
+    subtitleEl.innerHTML = '<div>' + tabLabel + ' — ' + MONTHS_FULL[month] + ' ' + year + '</div>' +
+      '<div style="font-size:12px;color:var(--text3);font-weight:400;margin-top:2px;">' + tabDescriptions[tab] + '</div>';
+  }
+
+  // Shared tab: warn if no transfer data captured for this month
+  if (tab === 'shared' && incomeData.isTransferData && incomeData.total === 0) {
+    const alertsEl = document.getElementById('dash-alerts');
+    if (alertsEl) {
+      alertsEl.style.display = 'block';
+      alertsEl.innerHTML = '<div style="padding:10px 14px;background:#fef3cd;border-left:3px solid #f0c040;border-radius:0 8px 8px 0;font-size:13px;color:#856404;">⚠ No 2UP transfer data captured for ' + MONTHS_FULL[month] + ' ' + year + '. Income shows $0 because nobody has transferred money in yet (per the auto-sync data). Transfers get captured automatically when Up Bank sync runs.</div>';
+    }
+  }
 
   // ── METRICS ──
+  // CRITICAL: "budgeted surplus" was previously income − total budget, which
+  // ignores actual spending. We now show ACTUAL surplus = income − fixed − actual variable.
+  // This is the real money left (or over) after this month's actual transactions.
+  const actualSurplus = incomeData.total - expenses.fixed - actualSpend;
+  const varDiff = actualSpend - expenses.variable; // positive = overspent
   const metricsEl = document.getElementById('dash-metrics');
   if (metricsEl) {
     const incomeSub = tab === 'combined'
       ? 'Blayne ' + fmt(incomeData.blayne) + ' + Sophie ' + fmt(incomeData.sophie)
       : tab.charAt(0).toUpperCase() + tab.slice(1) + ' only';
+    const surplusLabel = varDiff > 0
+      ? 'over variable budget by ' + fmt(varDiff)
+      : (actualSurplus >= 0 && incomeData.total > 0 ? (actualSurplus / incomeData.total * 100).toFixed(1) + '% savings rate' : 'over budget');
     metricsEl.innerHTML =
       '<div class="metric"><div class="metric-label">monthly income</div><div class="metric-value">' + fmt(incomeData.total) + '</div><div class="metric-sub">' + incomeSub + '</div></div>' +
       '<div class="metric"><div class="metric-label">total budget</div><div class="metric-value">' + fmt(expenses.total) + '</div><div class="metric-sub">fixed ' + fmt(expenses.fixed) + ' + var ' + fmt(expenses.variable) + '</div></div>' +
-      '<div class="metric"><div class="metric-label">actual tracked</div><div class="metric-value ' + (actualSpend > expenses.variable ? 'neg' : 'pos') + '">' + fmt(actualSpend) + '</div><div class="metric-sub">of ' + fmt(expenses.variable) + ' variable budget</div></div>' +
-      '<div class="metric"><div class="metric-label">budgeted surplus</div><div class="metric-value ' + (surplus >= 0 ? 'pos' : 'neg') + '">' + fmt(surplus) + '</div><div class="metric-sub">' + (surplus >= 0 && incomeData.total > 0 ? (surplus / incomeData.total * 100).toFixed(1) + '% savings rate' : 'over budget') + '</div></div>';
+      '<div class="metric"><div class="metric-label">variable spent</div><div class="metric-value ' + (varDiff > 0 ? 'neg' : 'pos') + '">' + fmt(actualSpend) + '</div><div class="metric-sub">of ' + fmt(expenses.variable) + ' budget' + (varDiff > 0 ? ' · over by ' + fmt(varDiff) : ' · ' + fmt(expenses.variable - actualSpend) + ' left') + '</div></div>' +
+      '<div class="metric"><div class="metric-label">actual surplus</div><div class="metric-value ' + (actualSurplus >= 0 ? 'pos' : 'neg') + '">' + fmt(actualSurplus) + '</div><div class="metric-sub">' + surplusLabel + '</div></div>';
   }
 
   // ── CATEGORY BARS ──
@@ -2233,7 +2389,7 @@ function renderTrendChart(tab) {
       const act = getPersonActuals(tab, txns);
       const monthExp = expenses.fixed + act;
       actualData.push(Math.round(monthExp));
-      surplusData.push(Math.round(getPersonIncome(tab).total - monthExp));
+      surplusData.push(Math.round(getPersonIncome(tab, chartYear, m).total - monthExp));
     } else {
       actualData.push(null);
       surplusData.push(null);
@@ -2765,6 +2921,11 @@ function renderCarFinance() {
 
   const loans = state.carLoans || [];
 
+  // Initialize/refresh EV calculator regardless of loan count
+  if (document.getElementById('ev-petrol-l100')) {
+    setTimeout(updateEvCalc, 50);
+  }
+
   if (loans.length === 0) {
     if (emptyInfo) emptyInfo.style.display = 'block';
     if (metricsEl) metricsEl.innerHTML = '';
@@ -2797,22 +2958,101 @@ function renderCarFinance() {
     const payoffDate = new Date();
     payoffDate.setMonth(payoffDate.getMonth() + Math.round((loan.term || 0) * 12));
     const payoffStr = payoffDate.toLocaleDateString('en-AU', { month: 'short', year: 'numeric' });
-    return '<div class="card mb-16">' +
+
+    // Slider min/max — give 0.5x to 1.5x range so user can stress-test in either direction
+    const balMin = Math.max(0, Math.round((loan.balance || 0) * 0.3 / 1000) * 1000);
+    const balMax = Math.round((loan.balance || 0) * 1.5 / 1000) * 1000 || 100000;
+    const rateMin = Math.max(0, ((loan.rate || 0) - 4)).toFixed(1);
+    const rateMax = ((loan.rate || 0) + 4).toFixed(1);
+    const termMin = 0.5;
+    const termMax = Math.max(10, (loan.term || 0) * 1.5);
+
+    return '<div class="card mb-16" id="cf-loan-card-' + i + '">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">' +
         '<div>' +
           '<div style="font-size:16px;font-weight:600;">' + (loan.name || 'Unnamed loan') + '</div>' +
-          '<div style="font-size:12px;color:var(--text3);margin-top:2px;"><span class="badge badge-gray">' + (loan.owner || 'Shared') + '</span> · ' + (loan.rate || 0).toFixed(2) + '% p.a. · ' + (loan.term || 0) + 'yr remaining</div>' +
+          '<div style="font-size:12px;color:var(--text3);margin-top:2px;"><span class="badge badge-gray">' + (loan.owner || 'Shared') + '</span> · simulator · drag sliders to model what-if</div>' +
         '</div>' +
-        '<button class="btn btn-sm btn-danger" onclick="deleteCarLoan(' + i + ')">× Remove</button>' +
+        '<div style="display:flex;gap:6px;">' +
+          '<button class="btn btn-sm" onclick="resetCarLoanSim(' + i + ')" title="Reset sliders to saved values">↺ Reset</button>' +
+          '<button class="btn btn-sm btn-primary" onclick="saveCarLoanSim(' + i + ')" title="Save slider values as new loan values">💾 Save changes</button>' +
+          '<button class="btn btn-sm btn-danger" onclick="deleteCarLoan(' + i + ')">×</button>' +
+        '</div>' +
       '</div>' +
-      '<div class="grid-2" style="gap:12px;">' +
-        '<div class="metric"><div class="metric-label">current balance</div><div class="metric-value">' + fmt(loan.balance || 0) + '</div><div class="metric-sub">of ' + fmt(loan.amount || 0) + ' original</div></div>' +
-        '<div class="metric"><div class="metric-label">repayment</div><div class="metric-value">' + fmt(periodAmt) + periodLabel + '</div><div class="metric-sub">' + fmt(calc.monthly) + '/month equivalent</div></div>' +
-        '<div class="metric"><div class="metric-label">total interest</div><div class="metric-value neg">' + fmt(calc.totalInterest) + '</div><div class="metric-sub">remaining over loan term</div></div>' +
-        '<div class="metric"><div class="metric-label">payoff date</div><div class="metric-value">' + payoffStr + '</div><div class="metric-sub">at current rate</div></div>' +
+
+      '<div style="padding:12px 14px;background:var(--surface2);border-radius:8px;margin-bottom:12px;">' +
+        '<div class="slider-row" style="margin-bottom:8px;">' +
+          '<span class="slider-lbl">Balance</span>' +
+          '<input type="range" id="cl-sim-bal-' + i + '" min="' + balMin + '" max="' + balMax + '" step="100" value="' + (loan.balance || 0) + '" oninput="updateCarLoanSim(' + i + ')">' +
+          '<span class="slider-val" id="cl-sim-bal-v-' + i + '">$' + Math.round(loan.balance || 0).toLocaleString() + '</span>' +
+        '</div>' +
+        '<div class="slider-row" style="margin-bottom:8px;">' +
+          '<span class="slider-lbl">Rate %</span>' +
+          '<input type="range" id="cl-sim-rate-' + i + '" min="' + rateMin + '" max="' + rateMax + '" step="0.05" value="' + (loan.rate || 0) + '" oninput="updateCarLoanSim(' + i + ')">' +
+          '<span class="slider-val" id="cl-sim-rate-v-' + i + '">' + (loan.rate || 0).toFixed(2) + '%</span>' +
+        '</div>' +
+        '<div class="slider-row">' +
+          '<span class="slider-lbl">Years left</span>' +
+          '<input type="range" id="cl-sim-term-' + i + '" min="' + termMin + '" max="' + termMax + '" step="0.5" value="' + (loan.term || 0) + '" oninput="updateCarLoanSim(' + i + ')">' +
+          '<span class="slider-val" id="cl-sim-term-v-' + i + '">' + (loan.term || 0) + ' yr</span>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="grid-2" style="gap:12px;" id="cf-loan-results-' + i + '">' +
+        '<div class="metric"><div class="metric-label">repayment</div><div class="metric-value" id="cf-res-pay-' + i + '">' + fmt(periodAmt) + periodLabel + '</div><div class="metric-sub" id="cf-res-pay-sub-' + i + '">' + fmt(calc.monthly) + '/month equivalent</div></div>' +
+        '<div class="metric"><div class="metric-label">total interest</div><div class="metric-value neg" id="cf-res-int-' + i + '">' + fmt(calc.totalInterest) + '</div><div class="metric-sub">over remaining term</div></div>' +
+        '<div class="metric"><div class="metric-label">total to pay</div><div class="metric-value" id="cf-res-tot-' + i + '">' + fmt((loan.balance || 0) + calc.totalInterest) + '</div><div class="metric-sub">balance + interest</div></div>' +
+        '<div class="metric"><div class="metric-label">payoff date</div><div class="metric-value" id="cf-res-date-' + i + '">' + payoffStr + '</div><div class="metric-sub">at slider rate</div></div>' +
       '</div>' +
     '</div>';
   }).join('');
+}
+
+// Update car loan card with current slider values (no save)
+function updateCarLoanSim(i) {
+  const bal = parseFloat(document.getElementById('cl-sim-bal-' + i).value) || 0;
+  const rate = parseFloat(document.getElementById('cl-sim-rate-' + i).value) || 0;
+  const term = parseFloat(document.getElementById('cl-sim-term-' + i).value) || 0;
+  const orig = (state.carLoans || [])[i];
+  if (!orig) return;
+
+  document.getElementById('cl-sim-bal-v-' + i).textContent = '$' + Math.round(bal).toLocaleString();
+  document.getElementById('cl-sim-rate-v-' + i).textContent = rate.toFixed(2) + '%';
+  document.getElementById('cl-sim-term-v-' + i).textContent = term + ' yr';
+
+  const sim = { balance: bal, rate: rate, term: term, freq: orig.freq };
+  const calc = calcCarLoan(sim);
+  const periodLabel = orig.freq === 'fortnightly' ? '/fn' : orig.freq === 'weekly' ? '/wk' : '/mo';
+  const periodAmt = orig.freq === 'fortnightly' ? calc.fortnightly : orig.freq === 'weekly' ? calc.weekly : calc.monthly;
+  const payoffDate = new Date();
+  payoffDate.setMonth(payoffDate.getMonth() + Math.round(term * 12));
+  const payoffStr = payoffDate.toLocaleDateString('en-AU', { month: 'short', year: 'numeric' });
+
+  document.getElementById('cf-res-pay-' + i).textContent = fmt(periodAmt) + periodLabel;
+  document.getElementById('cf-res-pay-sub-' + i).textContent = fmt(calc.monthly) + '/month equivalent';
+  document.getElementById('cf-res-int-' + i).textContent = fmt(calc.totalInterest);
+  document.getElementById('cf-res-tot-' + i).textContent = fmt(bal + calc.totalInterest);
+  document.getElementById('cf-res-date-' + i).textContent = payoffStr;
+}
+
+function resetCarLoanSim(i) {
+  const orig = (state.carLoans || [])[i];
+  if (!orig) return;
+  document.getElementById('cl-sim-bal-' + i).value = orig.balance || 0;
+  document.getElementById('cl-sim-rate-' + i).value = orig.rate || 0;
+  document.getElementById('cl-sim-term-' + i).value = orig.term || 0;
+  updateCarLoanSim(i);
+}
+
+function saveCarLoanSim(i) {
+  const orig = (state.carLoans || [])[i];
+  if (!orig) return;
+  if (!confirm('Save slider values as the new balance, rate, and term for ' + (orig.name || 'this loan') + '?')) return;
+  orig.balance = parseFloat(document.getElementById('cl-sim-bal-' + i).value) || 0;
+  orig.rate = parseFloat(document.getElementById('cl-sim-rate-' + i).value) || 0;
+  orig.term = parseFloat(document.getElementById('cl-sim-term-' + i).value) || 0;
+  saveState();
+  renderCarFinance();
 }
 
 // Calculate car loan payments using standard amortisation (P*r) / (1 - (1+r)^-n)
@@ -2879,6 +3119,167 @@ function deleteCarLoan(idx) {
   state.carLoans.splice(idx, 1);
   saveState();
   renderCarFinance();
+}
+
+// ════════════════ EV vs PETROL CALCULATOR ════════════════
+
+let evChart = null;
+
+function updateEvCalc() {
+  // Read all sliders
+  const petrolL100 = parseFloat(document.getElementById('ev-petrol-l100').value);
+  const petrolPrice = parseFloat(document.getElementById('ev-petrol-price').value);
+  const petrolService = parseFloat(document.getElementById('ev-petrol-service').value);
+  const evKwh100 = parseFloat(document.getElementById('ev-kwh100').value);
+  const elecPrice = parseFloat(document.getElementById('ev-elec-price').value);
+  const evService = parseFloat(document.getElementById('ev-ev-service').value);
+  const kmYear = parseFloat(document.getElementById('ev-km-year').value);
+  const petrolCost = parseFloat(document.getElementById('ev-petrol-cost').value);
+  const evCostRaw = parseFloat(document.getElementById('ev-ev-cost').value);
+  const rebate = document.getElementById('ev-rebate').checked;
+
+  // Update slider readouts
+  document.getElementById('ev-petrol-l100-v').textContent = petrolL100.toFixed(1) + ' L';
+  document.getElementById('ev-petrol-price-v').textContent = '$' + petrolPrice.toFixed(2);
+  document.getElementById('ev-petrol-service-v').textContent = '$' + petrolService.toLocaleString();
+  document.getElementById('ev-kwh100-v').textContent = evKwh100.toFixed(1) + ' kWh';
+  document.getElementById('ev-elec-price-v').textContent = '$' + elecPrice.toFixed(2);
+  document.getElementById('ev-ev-service-v').textContent = '$' + evService.toLocaleString();
+  document.getElementById('ev-km-year-v').textContent = kmYear.toLocaleString() + ' km';
+  document.getElementById('ev-petrol-cost-v').textContent = '$' + petrolCost.toLocaleString();
+  document.getElementById('ev-ev-cost-v').textContent = '$' + evCostRaw.toLocaleString();
+
+  // NSW stamp duty: cars under $45k pay 3% in NSW; over $45k pay 5% on the excess
+  // Petrol & EV are calculated the same way, EXCEPT EVs under $78k get the exemption.
+  function nswStampDuty(price) {
+    if (price <= 45000) return price * 0.03;
+    return 45000 * 0.03 + (price - 45000) * 0.05;
+  }
+  const petrolStamp = nswStampDuty(petrolCost);
+  const evStamp = evCostRaw < 78000 ? 0 : nswStampDuty(evCostRaw); // NSW EV exemption
+  const evRebate = rebate ? 3000 : 0;
+
+  const petrolTotalUpfront = petrolCost + petrolStamp;
+  const evTotalUpfront = evCostRaw + evStamp - evRebate;
+  const upfrontDelta = evTotalUpfront - petrolTotalUpfront; // positive = EV costs more upfront
+
+  // Annual running costs
+  const petrolFuelAnnual = (petrolL100 / 100) * kmYear * petrolPrice;
+  const evEnergyAnnual = (evKwh100 / 100) * kmYear * elecPrice;
+  const petrolRunAnnual = petrolFuelAnnual + petrolService;
+  const evRunAnnual = evEnergyAnnual + evService;
+  const annualSavings = petrolRunAnnual - evRunAnnual;
+  const monthlySavings = annualSavings / 12;
+
+  // Breakeven: years for cumulative running cost savings to cover the upfront EV premium
+  let breakevenYears = null;
+  if (annualSavings > 0 && upfrontDelta > 0) {
+    breakevenYears = upfrontDelta / annualSavings;
+  } else if (upfrontDelta <= 0 && annualSavings > 0) {
+    breakevenYears = 0; // EV is already cheaper upfront
+  } else if (annualSavings <= 0) {
+    breakevenYears = Infinity;
+  }
+
+  // 10-year cumulative cost arrays
+  const years = [];
+  const petrolCum = [];
+  const evCum = [];
+  for (let y = 0; y <= 10; y++) {
+    years.push('Year ' + y);
+    petrolCum.push(Math.round(petrolTotalUpfront + petrolRunAnnual * y));
+    evCum.push(Math.round(evTotalUpfront + evRunAnnual * y));
+  }
+  const tenYearSavings = petrolCum[10] - evCum[10];
+
+  // Render results metrics
+  const resultsEl = document.getElementById('ev-results');
+  if (resultsEl) {
+    resultsEl.innerHTML =
+      '<div class="metric"><div class="metric-label">monthly running savings</div><div class="metric-value ' + (monthlySavings >= 0 ? 'pos' : 'neg') + '">' + (monthlySavings >= 0 ? '+' : '') + fmt(monthlySavings) + '</div><div class="metric-sub">EV vs petrol per month</div></div>' +
+      '<div class="metric"><div class="metric-label">upfront extra</div><div class="metric-value ' + (upfrontDelta > 0 ? 'neg' : 'pos') + '">' + (upfrontDelta > 0 ? '+' : '') + fmt(upfrontDelta) + '</div><div class="metric-sub">' + (evStamp === 0 && evCostRaw < 78000 ? 'NSW stamp duty waived ' : '') + (rebate ? '· $3k rebate' : '') + '</div></div>' +
+      '<div class="metric"><div class="metric-label">breakeven</div><div class="metric-value">' + (breakevenYears === Infinity ? 'never' : breakevenYears === 0 ? 'immediate' : breakevenYears.toFixed(1) + ' yrs') + '</div><div class="metric-sub">to recoup the EV premium</div></div>' +
+      '<div class="metric"><div class="metric-label">10-yr saving</div><div class="metric-value ' + (tenYearSavings >= 0 ? 'pos' : 'neg') + '">' + (tenYearSavings >= 0 ? '+' : '') + fmt(tenYearSavings) + '</div><div class="metric-sub">total over 10 years</div></div>';
+  }
+
+  // Render verdict
+  const verdictEl = document.getElementById('ev-verdict');
+  if (verdictEl) {
+    let bg, border, color, msg;
+    if (breakevenYears === Infinity) {
+      bg = 'var(--red-bg)'; border = 'var(--red)'; color = 'var(--red)';
+      msg = '🚫 <strong>Not worth it.</strong> Running an EV would cost more per year than the petrol car at these settings. Check fuel economy, electricity price, or km driven.';
+    } else if (breakevenYears === 0) {
+      bg = 'var(--green-bg)'; border = 'var(--green)'; color = 'var(--green)';
+      msg = '✅ <strong>Already cheaper upfront AND cheaper to run.</strong> The EV wins immediately and saves you ' + fmt(annualSavings) + '/year on running costs. 10-year saving: ' + fmt(tenYearSavings) + '.';
+    } else if (breakevenYears <= 3) {
+      bg = 'var(--green-bg)'; border = 'var(--green)'; color = 'var(--green)';
+      msg = '✅ <strong>Strong case to switch.</strong> You\'d break even in ' + breakevenYears.toFixed(1) + ' years, then save ' + fmt(monthlySavings) + '/month thereafter. 10-year total saving: ' + fmt(tenYearSavings) + '.';
+    } else if (breakevenYears <= 6) {
+      bg = '#fef3cd'; border = '#f0c040'; color = '#856404';
+      msg = '🟡 <strong>Marginal.</strong> Breakeven at ' + breakevenYears.toFixed(1) + ' years. Worth it if you\'ll keep the car long-term — 10-year saving: ' + fmt(tenYearSavings) + '. Otherwise stick with petrol.';
+    } else if (breakevenYears <= 10) {
+      bg = '#fef3cd'; border = '#f0c040'; color = '#856404';
+      msg = '🟡 <strong>Long payback.</strong> Breakeven at ' + breakevenYears.toFixed(1) + ' years — only worth it if you\'re sure you\'ll keep this car that long.';
+    } else {
+      bg = 'var(--red-bg)'; border = 'var(--red)'; color = 'var(--red)';
+      msg = '❌ <strong>Doesn\'t pay back in 10 years.</strong> The upfront EV premium is too high relative to the running cost savings. Wait for a cheaper EV or higher petrol prices.';
+    }
+    verdictEl.style.background = bg;
+    verdictEl.style.borderLeft = '3px solid ' + border;
+    verdictEl.style.color = color;
+    verdictEl.innerHTML = msg;
+  }
+
+  // Render chart
+  const canvas = document.getElementById('ev-chart');
+  if (canvas && typeof Chart !== 'undefined') {
+    if (evChart) { try { evChart.destroy(); } catch(e) {} evChart = null; }
+    evChart = new Chart(canvas.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: years,
+        datasets: [
+          {
+            label: 'Petrol — cumulative cost',
+            data: petrolCum,
+            borderColor: '#BA7517',
+            backgroundColor: 'rgba(186,117,23,0.1)',
+            tension: 0.2,
+            fill: true
+          },
+          {
+            label: 'EV — cumulative cost',
+            data: evCum,
+            borderColor: '#1D9E75',
+            backgroundColor: 'rgba(29,158,117,0.1)',
+            tension: 0.2,
+            fill: true
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom' },
+          tooltip: {
+            callbacks: {
+              label: function(ctx) { return ctx.dataset.label + ': $' + ctx.parsed.y.toLocaleString(); }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: false,
+            ticks: {
+              callback: function(v) { return '$' + (v/1000).toFixed(0) + 'k'; }
+            }
+          }
+        }
+      }
+    });
+  }
 }
 
 // ════════════════ BUDGET SETTINGS ════════════════
