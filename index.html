@@ -1904,18 +1904,43 @@ function getPersonExpenses(tab, budgetItems, mortMonthly) {
   //   shared   = Shared items at 100% (2UP only)
   //   blayne   = Blayne 100% + Shared 50% (his fair share)
   //   sophie   = Sophie 100% + Shared 50% (her fair share)
+  // Also tracks the breakdown so we can show "personal X + 50% of shared Y" on
+  // the dashboard for Blayne/Sophie tabs.
   let fixed = 0, variable = 0;
+  let personalFixed = 0, personalVar = 0;
+  let sharedHalfFixed = 0, sharedHalfVar = 0;
   budgetItems.forEach(item => {
     const mo = item.desc === 'Mortgage repayment' ? mortMonthly : (item.monthly || 0);
+    const isFixed = item.type === 'Fixed' || item.desc === 'Mortgage repayment';
     let share = 0;
-    if (tab === 'combined') share = mo;
-    else if (tab === 'shared') share = item.owner === 'Shared' ? mo : 0;
-    else if (tab === 'blayne') share = item.owner === 'Blayne' ? mo : (item.owner === 'Shared' ? mo * 0.5 : 0);
-    else if (tab === 'sophie') share = item.owner === 'Sophie' ? mo : (item.owner === 'Shared' ? mo * 0.5 : 0);
-    if (item.type === 'Fixed' || item.desc === 'Mortgage repayment') fixed += share;
-    else variable += share;
+    if (tab === 'combined') {
+      share = mo;
+    } else if (tab === 'shared') {
+      share = item.owner === 'Shared' ? mo : 0;
+    } else if (tab === 'blayne') {
+      if (item.owner === 'Blayne') {
+        share = mo;
+        if (isFixed) personalFixed += mo; else personalVar += mo;
+      } else if (item.owner === 'Shared') {
+        share = mo * 0.5;
+        if (isFixed) sharedHalfFixed += mo * 0.5; else sharedHalfVar += mo * 0.5;
+      }
+    } else if (tab === 'sophie') {
+      if (item.owner === 'Sophie') {
+        share = mo;
+        if (isFixed) personalFixed += mo; else personalVar += mo;
+      } else if (item.owner === 'Shared') {
+        share = mo * 0.5;
+        if (isFixed) sharedHalfFixed += mo * 0.5; else sharedHalfVar += mo * 0.5;
+      }
+    }
+    if (isFixed) fixed += share; else variable += share;
   });
-  return { fixed, variable, total: fixed + variable };
+  return {
+    fixed, variable, total: fixed + variable,
+    personalFixed, personalVar,
+    sharedHalfFixed, sharedHalfVar
+  };
 }
 
 // Sum actual transactions for a tab. By default, skips Fixed transactions
@@ -1996,9 +2021,19 @@ function renderDashboard() {
     const surplusLabel = varDiff > 0
       ? 'over variable budget by ' + fmt(varDiff)
       : (actualSurplus >= 0 && incomeData.total > 0 ? (actualSurplus / incomeData.total * 100).toFixed(1) + '% savings rate' : 'over budget');
+    // Build the budget sub-text. For Blayne/Sophie tabs we show the breakdown
+    // (personal X + 50% of shared Y) so users understand where the totals come from.
+    let budgetSub;
+    if (tab === 'blayne' || tab === 'sophie') {
+      const fixedBreak = 'fixed ' + fmt(expenses.fixed) + ' (own ' + fmt(expenses.personalFixed) + ' + ½ shared ' + fmt(expenses.sharedHalfFixed) + ')';
+      const varBreak = 'var ' + fmt(expenses.variable) + ' (own ' + fmt(expenses.personalVar) + ' + ½ shared ' + fmt(expenses.sharedHalfVar) + ')';
+      budgetSub = fixedBreak + ' · ' + varBreak;
+    } else {
+      budgetSub = 'fixed ' + fmt(expenses.fixed) + ' + var ' + fmt(expenses.variable);
+    }
     metricsEl.innerHTML =
       '<div class="metric"><div class="metric-label">monthly income</div><div class="metric-value">' + fmt(incomeData.total) + '</div><div class="metric-sub">' + incomeSub + '</div></div>' +
-      '<div class="metric"><div class="metric-label">total budget</div><div class="metric-value">' + fmt(expenses.total) + '</div><div class="metric-sub">fixed ' + fmt(expenses.fixed) + ' + var ' + fmt(expenses.variable) + '</div></div>' +
+      '<div class="metric"><div class="metric-label">total budget</div><div class="metric-value">' + fmt(expenses.total) + '</div><div class="metric-sub" style="font-size:11px;line-height:1.4;">' + budgetSub + '</div></div>' +
       '<div class="metric"><div class="metric-label">variable spent</div><div class="metric-value ' + (varDiff > 0 ? 'neg' : 'pos') + '">' + fmt(actualSpend) + '</div><div class="metric-sub">of ' + fmt(expenses.variable) + ' budget' + (varDiff > 0 ? ' · over by ' + fmt(varDiff) : ' · ' + fmt(expenses.variable - actualSpend) + ' left') + '</div></div>' +
       '<div class="metric"><div class="metric-label">actual surplus</div><div class="metric-value ' + (actualSurplus >= 0 ? 'pos' : 'neg') + '">' + fmt(actualSurplus) + '</div><div class="metric-sub">' + surplusLabel + '</div></div>';
   }
