@@ -809,7 +809,7 @@
       <input type="text" id="rule-pattern" placeholder="e.g. woolworths" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:8px;font-family:var(--font);font-size:14px;color:var(--text);">
       <div style="font-size:11px;color:var(--text3);margin-top:4px;">Any transaction containing this text will be matched (case-insensitive)</div>
     </div>
-    <div style="margin-bottom:20px;">
+    <div style="margin-bottom:14px;">
       <label style="font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bottom:5px;">Category</label>
       <select id="rule-cat" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:8px;font-family:var(--font);font-size:14px;color:var(--text);">
         <option>Groceries</option><option>Dining Out</option><option>Takeaway</option>
@@ -820,6 +820,14 @@
         <option>Home Maintenance</option><option>Utilities</option>
         <option>Subscriptions</option><option>Other</option>
       </select>
+    </div>
+    <div style="margin-bottom:20px;">
+      <label style="font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bottom:5px;">Type</label>
+      <select id="rule-type" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:8px;font-family:var(--font);font-size:14px;color:var(--text);">
+        <option value="Variable">Variable (counts toward variable budget)</option>
+        <option value="Fixed">Fixed (Netflix, AGL, Strata, mortgage etc. — already in your fixed budget)</option>
+      </select>
+      <div style="font-size:11px;color:var(--text3);margin-top:4px;">Mark as Fixed if this merchant is already accounted for in your monthly fixed budget</div>
     </div>
     <div style="display:flex;gap:8px;">
       <button class="btn btn-primary" onclick="saveNewRule()" style="flex:1;">Save rule</button>
@@ -908,7 +916,7 @@
         </div>
       </div>
 
-      <div style="font-size:12px;color:var(--text3);margin-bottom:12px;">Change any category using the dropdowns. Uncheck rows you don't want to import. Shared expenses will be split 50/50.</div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:12px;">Change any category, owner, or type using the dropdowns. Mark utility/subscription bills as <b>Fixed</b> so they don't double-up against your Fixed budget. Click 💾 to remember the choice for next time.</div>
 
       <div style="overflow-x:auto;">
         <table class="tbl" id="imp-review-table">
@@ -919,6 +927,7 @@
               <th>description</th>
               <th>category</th>
               <th>owner</th>
+              <th>type</th>
               <th class="num">amount</th>
             </tr>
           </thead>
@@ -1345,20 +1354,92 @@ function categorizeMerchant(description) {
 
 // Detect if a transaction description matches a known Fixed budget item.
 // Returns 'Fixed' or 'Variable'. Substring match, case-insensitive.
+// Priority order:
+//   1. User-trained merchant rule with explicit type (most reliable)
+//   2. Substring match against any Fixed budget item description
+//   3. Fall back to 'Variable'
 function detectIfFixed(desc) {
   if (!desc) return 'Variable';
   const d = String(desc).toLowerCase().trim();
+
+  // 1. Check user merchant rules first — they have explicit type from training
+  if (state.merchantRules && Array.isArray(state.merchantRules)) {
+    for (const rule of state.merchantRules) {
+      if (!rule || !rule.pattern || !rule.type) continue;
+      const pat = String(rule.pattern).toLowerCase().trim();
+      if (pat.length === 0) continue;
+      if (d.includes(pat)) return rule.type === 'Fixed' ? 'Fixed' : 'Variable';
+    }
+  }
+
+  // 2. Check Fixed budget item descriptions
   if (!state.budgetItems) return 'Variable';
   for (const item of state.budgetItems) {
     if (item.type !== 'Fixed') continue;
     const itemDesc = String(item.desc || '').toLowerCase().trim();
-    if (itemDesc.length < 3) continue; // Skip very short descs to avoid false matches
+    if (itemDesc.length < 3) continue;
     // Strip parentheticals like "(Blayne)" before matching
     const cleanItem = itemDesc.replace(/\s*\([^)]*\)\s*$/, '').trim();
     if (cleanItem.length < 3) continue;
     if (d.includes(cleanItem)) return 'Fixed';
   }
   return 'Variable';
+}
+
+// Find which Fixed budget item a transaction description matches.
+// Returns the budget item or null. Same matching logic as detectIfFixed but
+// returns the actual item so we can compare amounts and flag over-budget.
+function findMatchingFixedItem(desc) {
+  if (!desc) return null;
+  const d = String(desc).toLowerCase().trim();
+
+  // First try user merchant rules — if a rule maps to a Fixed type AND its
+  // category matches a Fixed budget item, use that item
+  if (state.merchantRules && Array.isArray(state.merchantRules)) {
+    for (const rule of state.merchantRules) {
+      if (!rule || !rule.pattern || rule.type !== 'Fixed') continue;
+      const pat = String(rule.pattern).toLowerCase().trim();
+      if (pat.length === 0) continue;
+      if (d.includes(pat)) {
+        // Find a Fixed budget item by category match (best effort)
+        if (rule.cat && state.budgetItems) {
+          for (const item of state.budgetItems) {
+            if (item.type !== 'Fixed') continue;
+            // Match by varCat or by description-derived cat
+            const itemCat = item.varCat || mapBudgetItemToVarCat(item.desc);
+            if (itemCat === rule.cat) return item;
+          }
+        }
+        // No category match — fall through to description match below
+      }
+    }
+  }
+
+  // Description substring match against Fixed budget items
+  if (!state.budgetItems) return null;
+  for (const item of state.budgetItems) {
+    if (item.type !== 'Fixed') continue;
+    const itemDesc = String(item.desc || '').toLowerCase().trim();
+    if (itemDesc.length < 3) continue;
+    const cleanItem = itemDesc.replace(/\s*\([^)]*\)\s*$/, '').trim();
+    if (cleanItem.length < 3) continue;
+    if (d.includes(cleanItem)) return item;
+  }
+  return null;
+}
+
+// Check if a Fixed transaction exceeds its matching budget item's monthly amount.
+// Returns { over: true, item, diff, pct } or { over: false, item } or null if no match.
+function checkFixedOverBudget(txn) {
+  if (!txn || !txn.desc) return null;
+  const item = findMatchingFixedItem(txn.desc);
+  if (!item) return null;
+  const txnAmt = Math.abs(parseFloat(txn.amount) || 0);
+  const budgetAmt = item.monthly || 0;
+  if (budgetAmt <= 0) return { over: false, item: item };
+  const diff = txnAmt - budgetAmt;
+  const pct = (txnAmt / budgetAmt) * 100;
+  return { over: diff > 0.5, item: item, diff: diff, pct: pct, txnAmt: txnAmt, budgetAmt: budgetAmt };
 }
 
 const DEFAULT_ACCOUNTS = [
@@ -1944,16 +2025,54 @@ function renderCategoryAlerts(year, month, tab, expenses) {
     }
   });
 
-  if (alerts.length === 0) {
+  // ── Fixed over-budget alerts ──
+  // Group all Fixed transactions in this month by which budget item they match,
+  // then check if total spent exceeds the item's monthly amount
+  var fixedAlerts = [];
+  var matchedSpend = {}; // budget item desc → { item, spent, txns }
+  txns.forEach(function(t) {
+    if (t.type !== 'Fixed') return;
+    // Skip filtering by tab here — show ALL fixed over-budget events on the dashboard
+    var item = findMatchingFixedItem(t.desc);
+    if (!item) return;
+    var key = item.desc;
+    if (!matchedSpend[key]) matchedSpend[key] = { item: item, spent: 0, txns: [] };
+    matchedSpend[key].spent += Math.abs(parseFloat(t.amount) || 0);
+    matchedSpend[key].txns.push(t);
+  });
+  Object.keys(matchedSpend).forEach(function(key) {
+    var entry = matchedSpend[key];
+    var bud = entry.item.monthly || 0;
+    if (bud <= 0) return;
+    if (entry.spent > bud + 0.5) {
+      fixedAlerts.push({
+        desc: entry.item.desc,
+        spent: entry.spent,
+        budget: bud,
+        diff: entry.spent - bud,
+        txnCount: entry.txns.length
+      });
+    }
+  });
+
+  if (alerts.length === 0 && fixedAlerts.length === 0) {
     alertsEl.style.display = 'none';
     return;
   }
 
   // Sort by severity (highest % first)
   alerts.sort(function(a, b) { return b.pct - a.pct; });
+  fixedAlerts.sort(function(a, b) { return b.diff - a.diff; });
 
   alertsEl.style.display = 'block';
-  alertsEl.innerHTML = alerts.map(function(a) {
+  var fixedAlertHtml = fixedAlerts.map(function(fa) {
+    return '<div style="padding:10px 14px;background:var(--red-bg);border-left:3px solid var(--red);border-radius:0 8px 8px 0;margin-bottom:6px;font-size:13px;color:var(--red);">' +
+      '🚨 <strong>' + fa.desc + '</strong> is OVER fixed budget — ' + fmt(fa.spent) + ' spent vs ' + fmt(fa.budget) + ' budgeted (over by ' + fmt(fa.diff) + ')' +
+      '<div style="font-size:11px;color:var(--text3);margin-top:3px;">Update this in Budget Settings to reflect the new amount.</div>' +
+      '</div>';
+  }).join('');
+
+  alertsEl.innerHTML = fixedAlertHtml + alerts.map(function(a) {
     var isOver = a.pct >= 100;
     var bgColor = isOver ? 'var(--red-bg)' : '#fef3cd';
     var borderColor = isOver ? 'var(--red)' : '#f0c040';
@@ -2438,12 +2557,23 @@ function renderTracker() {
     const sharedNote = t.owner === 'Shared' && (tab === 'blayne' || tab === 'sophie') ? ' <span style="font-size:10px;color:var(--text3);">(50%)</span>' : '';
     const fixedBadge = t.type === 'Fixed' ? ' <span style="font-size:9px;background:var(--blue-bg);color:var(--blue);padding:1px 5px;border-radius:3px;">FIXED</span>' : '';
     const reimbBadge = t.amount < 0 ? ' <span style="font-size:9px;background:var(--green-bg);color:var(--green);padding:1px 5px;border-radius:3px;">REIMB</span>' : '';
+    // Check over-budget for Fixed transactions
+    let overBadge = '';
+    let amtStyle = '';
+    if (t.type === 'Fixed') {
+      const check = checkFixedOverBudget(t);
+      if (check && check.over) {
+        overBadge = ' <span style="font-size:9px;background:var(--red-bg);color:var(--red);padding:1px 5px;border-radius:3px;font-weight:600;" title="Over ' + check.item.desc + ' budget by $' + check.diff.toFixed(2) + '">⚠ OVER</span>';
+        amtStyle = 'color:var(--red);font-weight:600;';
+      }
+    }
+    if (t.amount < 0) amtStyle = 'color:var(--green);';
     return '<tr>' +
       '<td>' + t.date + '</td>' +
-      '<td>' + t.desc + fixedBadge + reimbBadge + '</td>' +
+      '<td>' + t.desc + fixedBadge + overBadge + reimbBadge + '</td>' +
       '<td><span class="badge badge-gray">' + t.cat + '</span></td>' +
       '<td>' + t.owner + sharedNote + '</td>' +
-      '<td class="num"' + (t.amount < 0 ? ' style="color:var(--green);"' : '') + '>' + fmtDec(t.amount) + '</td>' +
+      '<td class="num"' + (amtStyle ? ' style="' + amtStyle + '"' : '') + '>' + fmtDec(t.amount) + '</td>' +
       '<td><button class="btn btn-sm btn-danger" onclick="deleteTransaction(\'' + getMonthKey(year, month) + '\',' + realIdx + ')">×</button></td>' +
     '</tr>';
   }).join('');
@@ -3375,6 +3505,11 @@ function renderImportResults(results, monthLabel) {
 
   if (!resultsEl || !tbody) return;
 
+  // Auto-detect type for any row that doesn't already have one
+  results.forEach(function(r) {
+    if (!r.type) r.type = detectIfFixed(r.desc);
+  });
+
   importResults = results;
   resultsEl.style.display = 'block';
 
@@ -3390,11 +3525,33 @@ function renderImportResults(results, monthLabel) {
       return '<option value="' + o + '"' + (o === r.owner ? ' selected' : '') + '>' + o + '</option>';
     }).join('');
 
-    // Show a "remember" button if category was auto-matched (not "Other" or already custom)
-    const isOther = r.cat === 'Other';
-    const rememberBtn = '<button onclick="rememberRule(' + i + ')" title="Remember this category for \''+r.desc+'\'" style="font-family:var(--font);font-size:10px;padding:3px 7px;border:1px solid var(--border2);border-radius:5px;background:var(--green-bg);color:var(--green);cursor:pointer;white-space:nowrap;">💾 Remember</button>';
+    const typeOptions = ['Variable','Fixed'].map(function(tp) {
+      return '<option value="' + tp + '"' + (tp === r.type ? ' selected' : '') + '>' + tp + '</option>';
+    }).join('');
 
-    return '<tr id="imp-row-' + i + '">' +
+    // Type-coloured row hint (Fixed gets a subtle blue tint to make it visually obvious)
+    const rowStyle = r.type === 'Fixed' ? 'background:rgba(24,95,165,0.04);' : '';
+
+    // Show a "remember" button if category was auto-matched (not "Other" or already custom)
+    const rememberBtn = '<button onclick="rememberRule(' + i + ')" title="Remember category + type for \''+r.desc+'\'" style="font-family:var(--font);font-size:10px;padding:3px 7px;border:1px solid var(--border2);border-radius:5px;background:var(--green-bg);color:var(--green);cursor:pointer;white-space:nowrap;">💾 Remember</button>';
+
+    // Type select with colour cue
+    const typeSelectStyle = r.type === 'Fixed'
+      ? 'font-family:var(--font);font-size:12px;padding:4px 6px;border:1px solid #185FA5;border-radius:6px;background:rgba(24,95,165,0.08);color:#185FA5;font-weight:600;width:100%;'
+      : 'font-family:var(--font);font-size:12px;padding:4px 6px;border:1px solid var(--border2);border-radius:6px;background:var(--surface);color:var(--text);width:100%;';
+
+    // Check if this Fixed transaction exceeds its budget item
+    let overBudgetBadge = '';
+    let amountCellStyle = 'font-family:var(--mono);font-size:12px;';
+    if (r.type === 'Fixed') {
+      const check = checkFixedOverBudget(r);
+      if (check && check.over) {
+        overBudgetBadge = '<div style="margin-top:3px;font-size:10px;color:var(--red);font-weight:600;" title="Over ' + check.item.desc + ' budget by $' + check.diff.toFixed(2) + '">⚠ +$' + check.diff.toFixed(2) + ' over ' + check.item.desc + '</div>';
+        amountCellStyle += 'color:var(--red);font-weight:600;';
+      }
+    }
+
+    return '<tr id="imp-row-' + i + '" style="' + rowStyle + '">' +
       '<td><input type="checkbox" class="imp-chk" data-idx="' + i + '" checked></td>' +
       '<td style="font-size:12px;color:var(--text2);">' + r.date + '</td>' +
       '<td style="font-size:12px;max-width:200px;">' +
@@ -3403,15 +3560,34 @@ function renderImportResults(results, monthLabel) {
       '</td>' +
       '<td><select onchange="updateImportCat(' + i + ',this.value)" style="font-family:var(--font);font-size:12px;padding:4px 6px;border:1px solid var(--border2);border-radius:6px;background:var(--surface);color:var(--text);width:100%;">' + catOptions + '</select></td>' +
       '<td><select onchange="updateImportOwner(' + i + ',this.value)" style="font-family:var(--font);font-size:12px;padding:4px 6px;border:1px solid var(--border2);border-radius:6px;background:var(--surface);color:var(--text);width:100%;">' + ownerOptions + '</select></td>' +
-      '<td class="num" style="font-family:var(--mono);font-size:12px;">$' + (r.amount||0).toFixed(2) + '</td>' +
+      '<td><select onchange="updateImportType(' + i + ',this.value)" style="' + typeSelectStyle + '">' + typeOptions + '</select></td>' +
+      '<td class="num" style="' + amountCellStyle + '">$' + (r.amount||0).toFixed(2) + overBudgetBadge + '</td>' +
     '</tr>';
   }).join('');
 
   if (summaryEl) {
     const otherCount = results.filter(function(r) { return r.cat === 'Other'; }).length;
-    summaryEl.innerHTML = otherCount > 0
-      ? '<span style="color:var(--amber);">⚠ ' + otherCount + ' transaction' + (otherCount>1?'s':'') + ' couldn\'t be matched \u2014 check the <b>Other</b> rows and update categories, then click \ud83d\udcbe Remember so they\'re auto-matched next time.</span>'
-      : '<span style="color:var(--green);">✓ All transactions matched to categories automatically.</span>';
+    const fixedCount = results.filter(function(r) { return r.type === 'Fixed'; }).length;
+    const overCount = results.filter(function(r) {
+      if (r.type !== 'Fixed') return false;
+      const c = checkFixedOverBudget(r);
+      return c && c.over;
+    }).length;
+    let msg = '';
+    if (otherCount > 0) {
+      msg += '<div style="color:var(--amber);">⚠ ' + otherCount + ' transaction' + (otherCount>1?'s':'') + " couldn't be matched — check the <b>Other</b> rows and update categories, then click 💾 Remember so they're auto-matched next time.</div>";
+    } else {
+      msg += '<div style="color:var(--green);">✓ All transactions matched to categories automatically.</div>';
+    }
+    if (fixedCount > 0) {
+      msg += '<div style="margin-top:6px;color:var(--blue);">ℹ ' + fixedCount + ' transaction' + (fixedCount>1?'s':'') + ' marked <b>Fixed</b> — these will NOT count against your variable budget (they\'re already in your fixed budget). Mark anything with the wrong type using the dropdown.</div>';
+    } else {
+      msg += '<div style="margin-top:6px;color:var(--text3);font-size:12px;">No transactions detected as Fixed. If utility/subscription bills are in this batch (e.g. AGL, Telstra, Strata), set their <b>type</b> to Fixed using the dropdown so they don\'t double-up against your budget.</div>';
+    }
+    if (overCount > 0) {
+      msg += '<div style="margin-top:6px;padding:8px 10px;background:var(--red-bg);border-left:3px solid var(--red);border-radius:0 6px 6px 0;color:var(--red);font-weight:500;">🚨 ' + overCount + ' Fixed transaction' + (overCount>1?'s are':' is') + ' OVER the budgeted monthly amount. Look for the red ⚠ flag in the amount column — you\'ll need to update those budget items in Budget Settings.</div>';
+    }
+    summaryEl.innerHTML = msg;
   }
 
   // Add click handler for select-all checkbox
@@ -3427,6 +3603,66 @@ function updateImportOwner(idx, owner) {
   if (importResults[idx]) importResults[idx].owner = owner;
 }
 
+function updateImportType(idx, type) {
+  if (!importResults[idx]) return;
+  importResults[idx].type = type;
+  // Full re-render of just the rows so over-budget flag updates correctly
+  // (cheaper than re-rendering whole table — just refresh this one row)
+  const row = document.getElementById('imp-row-' + idx);
+  if (row) {
+    row.style.background = type === 'Fixed' ? 'rgba(24,95,165,0.04)' : '';
+    // Find amount cell (last td) and rewrite it
+    const cells = row.querySelectorAll('td');
+    if (cells.length >= 7) {
+      const r = importResults[idx];
+      let badge = '';
+      let style = 'font-family:var(--mono);font-size:12px;';
+      if (type === 'Fixed') {
+        const check = checkFixedOverBudget(r);
+        if (check && check.over) {
+          badge = '<div style="margin-top:3px;font-size:10px;color:var(--red);font-weight:600;">⚠ +$' + check.diff.toFixed(2) + ' over ' + check.item.desc + '</div>';
+          style += 'color:var(--red);font-weight:600;';
+        }
+      }
+      cells[6].setAttribute('style', 'text-align:right;' + style);
+      cells[6].innerHTML = '$' + (r.amount||0).toFixed(2) + badge;
+    }
+    // Update select colour
+    const sel = row.querySelector('select[onchange*="updateImportType"]');
+    if (sel) {
+      if (type === 'Fixed') {
+        sel.style.cssText = 'font-family:var(--font);font-size:12px;padding:4px 6px;border:1px solid #185FA5;border-radius:6px;background:rgba(24,95,165,0.08);color:#185FA5;font-weight:600;width:100%;';
+      } else {
+        sel.style.cssText = 'font-family:var(--font);font-size:12px;padding:4px 6px;border:1px solid var(--border2);border-radius:6px;background:var(--surface);color:var(--text);width:100%;';
+      }
+    }
+  }
+  // Re-render summary line
+  const fixedCount = importResults.filter(function(r) { return r.type === 'Fixed'; }).length;
+  const overCount = importResults.filter(function(r) {
+    if (r.type !== 'Fixed') return false;
+    const c = checkFixedOverBudget(r);
+    return c && c.over;
+  }).length;
+  const summaryEl = document.getElementById('imp-summary');
+  if (summaryEl) {
+    const otherCount = importResults.filter(function(r) { return r.cat === 'Other'; }).length;
+    let msg = '';
+    if (otherCount > 0) {
+      msg += '<div style="color:var(--amber);">⚠ ' + otherCount + ' unmatched in <b>Other</b>.</div>';
+    } else {
+      msg += '<div style="color:var(--green);">✓ All matched.</div>';
+    }
+    if (fixedCount > 0) {
+      msg += '<div style="margin-top:6px;color:var(--blue);">ℹ ' + fixedCount + ' marked <b>Fixed</b>.</div>';
+    }
+    if (overCount > 0) {
+      msg += '<div style="margin-top:6px;padding:8px 10px;background:var(--red-bg);border-left:3px solid var(--red);border-radius:0 6px 6px 0;color:var(--red);font-weight:500;">🚨 ' + overCount + ' Fixed txn' + (overCount>1?'s':'') + ' OVER budget — update those budget items in Budget Settings.</div>';
+    }
+    summaryEl.innerHTML = msg;
+  }
+}
+
 function rememberRule(idx) {
   const r = importResults[idx];
   if (!r) return;
@@ -3440,8 +3676,8 @@ function rememberRule(idx) {
   state.merchantRules = state.merchantRules.filter(function(rule) {
     return rule.pattern.toLowerCase() !== pattern.toLowerCase();
   });
-  // Add new rule
-  state.merchantRules.unshift({ pattern: pattern, cat: r.cat, desc: r.desc });
+  // Add new rule with BOTH category and type
+  state.merchantRules.unshift({ pattern: pattern, cat: r.cat, type: r.type || 'Variable', desc: r.desc });
   saveLocal();
 
   // Visual feedback
@@ -4343,11 +4579,24 @@ function saveAutoSyncTransactions(txns) {
 function renderAutoSyncReview() {
   var CATS = DEFAULT_VAR_CATS;
 
+  // Auto-detect type for each pending transaction
+  autoSyncPending.forEach(function(t) {
+    if (!t.type) t.type = detectIfFixed(t.desc);
+  });
+
   var html = '';
   autoSyncPending.forEach(function(t, i) {
     var catOpts = CATS.map(function(c) {
       return '<option' + (c === t.cat ? ' selected' : '') + '>' + c + '</option>';
     }).join('');
+
+    var typeOpts = ['Variable','Fixed'].map(function(tp) {
+      return '<option value="' + tp + '"' + (tp === t.type ? ' selected' : '') + '>' + tp + '</option>';
+    }).join('');
+
+    var typeStyle = t.type === 'Fixed'
+      ? 'width:100px;font-size:11px;padding:6px 8px;background:rgba(24,95,165,0.08);border:1px solid #185FA5;border-radius:6px;color:#185FA5;font-weight:600;'
+      : 'width:100px;font-size:11px;padding:6px 8px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);';
 
     html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">' +
       '<div style="flex:1;min-width:150px;">' +
@@ -4355,6 +4604,7 @@ function renderAutoSyncReview() {
         '<div style="font-size:11px;color:var(--text3);">' + t.date + ' · ' + t.owner + ' · $' + Math.abs(t.amount).toFixed(2) + '</div>' +
       '</div>' +
       '<select id="autosync-cat-' + i + '" style="width:160px;font-size:12px;padding:6px 8px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);">' + catOpts + '</select>' +
+      '<select id="autosync-type-' + i + '" style="' + typeStyle + '">' + typeOpts + '</select>' +
       '<label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text3);cursor:pointer;white-space:nowrap;">' +
         '<input type="checkbox" id="autosync-remember-' + i + '" checked style="accent-color:var(--accent);"> Remember' +
       '</label>' +
@@ -4374,8 +4624,10 @@ function confirmAutoSync() {
 
   autoSyncPending.forEach(function(t, i) {
     var sel = document.getElementById('autosync-cat-' + i);
+    var typeSel = document.getElementById('autosync-type-' + i);
     var remember = document.getElementById('autosync-remember-' + i);
     if (sel) t.cat = sel.value;
+    if (typeSel) t.type = typeSel.value;
 
     // Save merchant rule if "Remember" is checked
     if (remember && remember.checked && sel && sel.value !== 'Other') {
@@ -4385,7 +4637,7 @@ function confirmAutoSync() {
         // Don't add duplicate rules
         var exists = state.merchantRules.some(function(r) { return r.pattern.toLowerCase() === pattern; });
         if (!exists) {
-          state.merchantRules.push({ pattern: pattern, cat: sel.value });
+          state.merchantRules.push({ pattern: pattern, cat: sel.value, type: t.type || 'Variable' });
         }
       }
     }
@@ -4711,12 +4963,20 @@ function renderMerchantRules() {
     const catOpts = CATS.map(function(cat) {
       return '<option value="' + cat + '"' + (cat === rule.cat ? ' selected' : '') + '>' + cat + '</option>';
     }).join('');
+    const ruleType = rule.type || 'Variable';
+    const typeOpts = ['Variable','Fixed'].map(function(tp) {
+      return '<option value="' + tp + '"' + (tp === ruleType ? ' selected' : '') + '>' + tp + '</option>';
+    }).join('');
+    const typeStyle = ruleType === 'Fixed'
+      ? 'font-family:var(--font);font-size:11px;padding:5px 8px;border:1px solid #185FA5;border-radius:6px;background:rgba(24,95,165,0.08);color:#185FA5;font-weight:600;'
+      : 'font-family:var(--font);font-size:11px;padding:5px 8px;border:1px solid var(--border2);border-radius:6px;background:var(--surface);color:var(--text);';
     return '<div style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">' +
       '<div style="flex:1;min-width:140px;">' +
         '<div style="font-size:13px;font-weight:500;color:var(--text);">' + rule.pattern + '</div>' +
         (rule.desc ? '<div style="font-size:11px;color:var(--text3);">from: ' + rule.desc + '</div>' : '') +
       '</div>' +
       '<select onchange="updateMerchantRule(' + i + ',\'cat\',this.value)" style="font-family:var(--font);font-size:12px;padding:5px 8px;border:1px solid var(--border2);border-radius:6px;background:var(--surface);color:var(--text);">' + catOpts + '</select>' +
+      '<select onchange="updateMerchantRule(' + i + ',\'type\',this.value);renderMerchantRules();" style="' + typeStyle + '">' + typeOpts + '</select>' +
       '<button onclick="deleteMerchantRule(' + i + ')" style="font-family:var(--font);font-size:11px;padding:5px 10px;border:1px solid var(--red);border-radius:6px;background:var(--red-bg);color:var(--red);cursor:pointer;">Delete</button>' +
     '</div>';
   }).join('');
@@ -4739,19 +4999,23 @@ function deleteMerchantRule(idx) {
 function showAddRuleModal() {
   document.getElementById('rule-pattern').value = '';
   document.getElementById('rule-cat').value = 'Other';
+  var typeSel = document.getElementById('rule-type');
+  if (typeSel) typeSel.value = 'Variable';
   document.getElementById('add-rule-modal').classList.add('open');
 }
 
 function saveNewRule() {
   const pattern = document.getElementById('rule-pattern').value.trim();
   const cat = document.getElementById('rule-cat').value;
+  const typeSel = document.getElementById('rule-type');
+  const type = typeSel ? typeSel.value : 'Variable';
   if (!pattern) { alert('Please enter a merchant pattern'); return; }
   if (!state.merchantRules) state.merchantRules = [];
   // Remove duplicate
   state.merchantRules = state.merchantRules.filter(function(r) {
     return r.pattern.toLowerCase() !== pattern.toLowerCase();
   });
-  state.merchantRules.unshift({ pattern: pattern, cat: cat });
+  state.merchantRules.unshift({ pattern: pattern, cat: cat, type: type });
   saveLocal();
   saveState();
   closeModal('add-rule-modal');
