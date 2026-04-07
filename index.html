@@ -300,6 +300,7 @@
     <button class="nav-tab" onclick="showPage('tracker',this)">Monthly Tracker</button>
     <button class="nav-tab" onclick="showPage('forecast',this)">Forecast</button>
     <button class="nav-tab" onclick="showPage('mortgage',this)">Mortgage</button>
+    <button class="nav-tab" onclick="showPage('carfinance',this)">Car Finance</button>
     <button class="nav-tab" onclick="showPage('budget',this)">Budget Settings</button>
     <button class="nav-tab" onclick="showPage('savings',this)">Savings</button>
     <button class="nav-tab" onclick="showPage('import',this)">Import</button>
@@ -558,6 +559,69 @@
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════ CAR FINANCE ══ -->
+<div id="page-carfinance" class="page">
+  <div class="flex between flex-center mb-20" style="flex-wrap:wrap;gap:10px;">
+    <div style="font-size:20px;font-weight:600;">Car Finance</div>
+    <button class="btn btn-primary" onclick="openAddCarLoan()">+ Add car loan</button>
+  </div>
+
+  <div class="info-box" id="cf-empty-info">
+    <strong>Track your car loans here.</strong> Add a loan to see repayments, total interest, and payoff date. The calculator uses the same amortisation formula as the mortgage page.
+  </div>
+
+  <div class="metrics" id="cf-metrics"></div>
+
+  <div id="cf-loans-wrap"></div>
+</div>
+
+<!-- ADD CAR LOAN MODAL -->
+<div class="modal-overlay" id="modal-car-loan">
+  <div class="modal">
+    <h3>Add car loan</h3>
+    <div class="form-row">
+      <label>Car name / lender</label>
+      <input type="text" id="cl-name" placeholder="e.g. Mazda CX-5 (Toyota Finance)">
+    </div>
+    <div class="form-row">
+      <label>Owner</label>
+      <select id="cl-owner">
+        <option value="Shared">Shared</option>
+        <option value="Blayne">Blayne</option>
+        <option value="Sophie">Sophie</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>Original loan amount ($)</label>
+      <input type="number" id="cl-amount" placeholder="35000" step="0.01">
+    </div>
+    <div class="form-row">
+      <label>Current balance ($)</label>
+      <input type="number" id="cl-balance" placeholder="28000" step="0.01">
+    </div>
+    <div class="form-row">
+      <label>Interest rate (% p.a.)</label>
+      <input type="number" id="cl-rate" placeholder="6.5" step="0.01">
+    </div>
+    <div class="form-row">
+      <label>Term remaining (years)</label>
+      <input type="number" id="cl-term" placeholder="5" step="0.5">
+    </div>
+    <div class="form-row">
+      <label>Repayment frequency</label>
+      <select id="cl-freq">
+        <option value="monthly">Monthly</option>
+        <option value="fortnightly">Fortnightly</option>
+        <option value="weekly">Weekly</option>
+      </select>
+    </div>
+    <div class="flex gap-8" style="margin-top:16px;">
+      <button class="btn btn-primary" onclick="saveCarLoan()">Save loan</button>
+      <button class="btn" onclick="closeModal('modal-car-loan')">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════════════════════════════════════ BUDGET SETTINGS ══ -->
 <div id="page-budget" class="page">
   <div class="flex between flex-center mb-20" style="flex-wrap:wrap;gap:10px;">
@@ -618,6 +682,26 @@
       <div class="card-title" style="margin:0;">budget line items — edit any field inline, changes save automatically</div>
       <button class="btn btn-sm btn-primary" onclick="openAddBudgetItem()">+ Add item</button>
     </div>
+    <div id="budget-filter-bar" style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Type:</span>
+        <div style="display:flex;border:1px solid var(--border2);border-radius:6px;overflow:hidden;">
+          <button class="bf-type-btn" data-val="all" onclick="setBudgetFilter('type','all')" style="font-family:var(--font);font-size:11px;padding:5px 10px;border:none;cursor:pointer;background:var(--accent);color:#fff;">All</button>
+          <button class="bf-type-btn" data-val="Fixed" onclick="setBudgetFilter('type','Fixed')" style="font-family:var(--font);font-size:11px;padding:5px 10px;border:none;border-left:1px solid var(--border2);cursor:pointer;background:var(--surface);color:var(--text2);">Fixed</button>
+          <button class="bf-type-btn" data-val="Variable" onclick="setBudgetFilter('type','Variable')" style="font-family:var(--font);font-size:11px;padding:5px 10px;border:none;border-left:1px solid var(--border2);cursor:pointer;background:var(--surface);color:var(--text2);">Variable</button>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Owner:</span>
+        <div style="display:flex;border:1px solid var(--border2);border-radius:6px;overflow:hidden;">
+          <button class="bf-owner-btn" data-val="all" onclick="setBudgetFilter('owner','all')" style="font-family:var(--font);font-size:11px;padding:5px 10px;border:none;cursor:pointer;background:var(--accent);color:#fff;">All</button>
+          <button class="bf-owner-btn" data-val="Shared" onclick="setBudgetFilter('owner','Shared')" style="font-family:var(--font);font-size:11px;padding:5px 10px;border:none;border-left:1px solid var(--border2);cursor:pointer;background:var(--surface);color:var(--text2);">Shared</button>
+          <button class="bf-owner-btn" data-val="Blayne" onclick="setBudgetFilter('owner','Blayne')" style="font-family:var(--font);font-size:11px;padding:5px 10px;border:none;border-left:1px solid var(--border2);cursor:pointer;background:var(--surface);color:var(--text2);">Blayne</button>
+          <button class="bf-owner-btn" data-val="Sophie" onclick="setBudgetFilter('owner','Sophie')" style="font-family:var(--font);font-size:11px;padding:5px 10px;border:none;border-left:1px solid var(--border2);cursor:pointer;background:var(--surface);color:var(--text2);">Sophie</button>
+        </div>
+      </div>
+      <span id="budget-filter-count" style="font-size:11px;color:var(--text3);margin-left:auto;"></span>
+    </div>
     <div id="budget-items-wrap"></div>
   </div>
 
@@ -647,6 +731,13 @@
         <option value="Shared">Shared</option>
         <option value="Blayne">Blayne</option>
         <option value="Sophie">Sophie</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>Type</label>
+      <select id="exp-type">
+        <option value="Variable">Variable (counts toward variable budget)</option>
+        <option value="Fixed">Fixed (Netflix, mortgage, subscriptions etc.)</option>
       </select>
     </div>
     <div class="form-row">
@@ -694,7 +785,7 @@
     <div class="section-title" style="margin:0;">merchant category rules</div>
     <div style="display:flex;gap:8px;">
       <button class="btn btn-primary" onclick="showAddRuleModal()">+ Add rule</button>
-      <button class="btn" onclick="showPage('budget',document.querySelector('.nav-tab'))">← Back to budget</button>
+      <button class="btn" onclick="hideMerchantRules()">← Back to budget</button>
     </div>
   </div>
   <div class="card" style="margin-bottom:12px;">
@@ -1041,7 +1132,7 @@ const DEFAULT_BUDGET = [
   {cat:'Financial',desc:'Super contributions (Blayne)',owner:'Blayne',freq:'monthly',type:'Fixed',amt:400,monthly:400},
 ];
 
-const DEFAULT_VAR_CATS = ['Groceries','Dining Out','Takeaway','Alcohol / Pub','Fuel','Transport','Health & Medical','Personal Care','Clothing','Entertainment','Hobbies','Gifts & Birthdays','Insurance','Personal Spending','Home Maintenance','Utilities','Subscriptions','Other'];
+const DEFAULT_VAR_CATS = ['Groceries','Dining Out','Takeaway','Alcohol / Pub','Fuel','Transport','Health & Medical','Personal Care','Clothing','Entertainment','Hobbies','Holiday','Gifts & Birthdays','Insurance','Personal Spending','Home Maintenance','Utilities','Subscriptions','Other'];
 
 // Dynamic: build VAR_CATS from defaults + any custom categories found in budget items or transactions
 function getVarCats() {
@@ -1105,6 +1196,7 @@ function mapBudgetItemToVarCat(desc) {
   if (d.indexOf('gift') !== -1 || d.indexOf('birthday') !== -1 || d.indexOf('present') !== -1) return 'Gifts & Birthdays';
   if (d.indexOf('insurance') !== -1) return 'Insurance';
   if (d.indexOf('hobby') !== -1 || d.indexOf('hobbies') !== -1 || d.indexOf('craft') !== -1) return 'Hobbies';
+  if (d.indexOf('holiday') !== -1 || d.indexOf('travel') !== -1 || d.indexOf('vacation') !== -1 || d.indexOf('trip') !== -1) return 'Holiday';
   if (d.indexOf('health') !== -1 || d.indexOf('medical') !== -1 || d.indexOf('dental') !== -1 || d.indexOf('doctor') !== -1 || d.indexOf('pharmacy') !== -1 || d.indexOf('chemist') !== -1 || d.indexOf('physio') !== -1) return 'Health & Medical';
   if (d.indexOf('cloth') !== -1 || d.indexOf('shoes') !== -1) return 'Clothing';
   if (d.indexOf('movie') !== -1 || d.indexOf('concert') !== -1 || d.indexOf('event') !== -1 || d.indexOf('entertainment') !== -1 || d.indexOf('sport') !== -1 || d.indexOf('cricket') !== -1) return 'Entertainment';
@@ -1189,6 +1281,14 @@ const DEFAULT_MERCHANT_RULES = [
   { pattern: 'spotlight', cat: 'Hobbies' }, { pattern: 'lincraft', cat: 'Hobbies' },
   { pattern: 'eckersley', cat: 'Hobbies' }, { pattern: 'hobby', cat: 'Hobbies' },
   { pattern: 'craft', cat: 'Hobbies' }, { pattern: 'jb hi-fi', cat: 'Hobbies' },
+  // Holiday
+  { pattern: 'booking.com', cat: 'Holiday' }, { pattern: 'airbnb', cat: 'Holiday' },
+  { pattern: 'expedia', cat: 'Holiday' }, { pattern: 'agoda', cat: 'Holiday' },
+  { pattern: 'hotels.com', cat: 'Holiday' }, { pattern: 'wotif', cat: 'Holiday' },
+  { pattern: 'qantas', cat: 'Holiday' }, { pattern: 'jetstar', cat: 'Holiday' },
+  { pattern: 'virgin australia', cat: 'Holiday' }, { pattern: 'tigerair', cat: 'Holiday' },
+  { pattern: 'flight centre', cat: 'Holiday' }, { pattern: 'tripadvisor', cat: 'Holiday' },
+  { pattern: 'rentalcars', cat: 'Holiday' }, { pattern: 'klook', cat: 'Holiday' },
   // Clothing
   { pattern: 'zara', cat: 'Clothing' }, { pattern: 'h&m', cat: 'Clothing' },
   { pattern: 'uniqlo', cat: 'Clothing' }, { pattern: 'cotton on', cat: 'Clothing' },
@@ -1223,11 +1323,18 @@ const DEFAULT_MERCHANT_RULES = [
 ];
 
 function categorizeMerchant(description) {
-  const desc = description.toLowerCase();
+  if (!description) return 'Other';
+  const desc = String(description).toLowerCase().trim();
   // Check user custom rules first (they take priority)
   const customRules = state.merchantRules || [];
   for (const rule of customRules) {
-    if (desc.includes(rule.pattern.toLowerCase())) return rule.cat;
+    if (!rule || !rule.pattern) continue;
+    const pat = String(rule.pattern).toLowerCase().trim();
+    if (pat.length === 0) continue;
+    if (desc.includes(pat)) {
+      // Tolerate both field names: cat (correct) and category (legacy)
+      return rule.cat || rule.category || 'Other';
+    }
   }
   // Then check default rules
   for (const rule of DEFAULT_MERCHANT_RULES) {
@@ -1236,9 +1343,28 @@ function categorizeMerchant(description) {
   return 'Other';
 }
 
+// Detect if a transaction description matches a known Fixed budget item.
+// Returns 'Fixed' or 'Variable'. Substring match, case-insensitive.
+function detectIfFixed(desc) {
+  if (!desc) return 'Variable';
+  const d = String(desc).toLowerCase().trim();
+  if (!state.budgetItems) return 'Variable';
+  for (const item of state.budgetItems) {
+    if (item.type !== 'Fixed') continue;
+    const itemDesc = String(item.desc || '').toLowerCase().trim();
+    if (itemDesc.length < 3) continue; // Skip very short descs to avoid false matches
+    // Strip parentheticals like "(Blayne)" before matching
+    const cleanItem = itemDesc.replace(/\s*\([^)]*\)\s*$/, '').trim();
+    if (cleanItem.length < 3) continue;
+    if (d.includes(cleanItem)) return 'Fixed';
+  }
+  return 'Variable';
+}
+
 const DEFAULT_ACCOUNTS = [
   { name: "Blayne — Offset", owner: "Blayne", balance: 6000,  rate: 0,    goalLabel: "Offset", goalTarget: 0,     isOffset: true  },
   { name: "Sophie — Offset", owner: "Sophie", balance: 20000, rate: 0,    goalLabel: "Offset", goalTarget: 0,     isOffset: true  },
+  { name: "Home Joint — Offset", owner: "Shared", balance: 5250, rate: 0, goalLabel: "Offset", goalTarget: 0, isOffset: true },
   { name: "Shares / Investments", owner: "Shared", balance: 18000, rate: 0, goalLabel: "Investments", goalTarget: 0, isOffset: false }
 ];
 
@@ -1328,11 +1454,14 @@ function showApp() {
 }
 
 function doLogout() {
+  if (window._pollInterval) clearInterval(window._pollInterval);
   sbSignOut();
   const loginEl = document.getElementById('login-screen');
   const appEl = document.getElementById('app-shell');
+  const navEl = document.querySelector('nav');
   if (loginEl) loginEl.style.display = 'flex';
   if (appEl) appEl.style.display = 'none';
+  if (navEl) navEl.style.display = 'none';
   document.getElementById('login-email').value = '';
   document.getElementById('login-password').value = '';
   document.getElementById('login-error').textContent = '';
@@ -1352,6 +1481,7 @@ let state = {
   },
   merchantRules: JSON.parse(localStorage.getItem('merchant_rules') || '[]'),
   settlements: JSON.parse(localStorage.getItem('settlements') || '{}'),
+  carLoans: JSON.parse(localStorage.getItem('car_loans') || '[]'),
   synced: false
 };
 
@@ -1363,6 +1493,7 @@ function saveLocal() {
   localStorage.setItem('config', JSON.stringify(state.config));
   localStorage.setItem('merchant_rules', JSON.stringify(state.merchantRules || []));
   localStorage.setItem('settlements', JSON.stringify(state.settlements || {}));
+  localStorage.setItem('car_loans', JSON.stringify(state.carLoans || []));
   // Belt-and-braces auto-save: schedule a debounced Supabase sync
   // in case any code path mutates state without calling saveState() directly
   scheduleAutoSave();
@@ -1386,6 +1517,7 @@ function scheduleAutoSave() {
       config: state.config,
       settlements: state.settlements || {},
       merchant_rules: state.merchantRules || [],
+      car_loans: state.carLoans || [],
       updated_at: new Date().toISOString()
     }).then(function() {
       state._lastSaved = Date.now();
@@ -1408,6 +1540,7 @@ async function saveState() {
       config: state.config,
       settlements: state.settlements || {},
       merchant_rules: state.merchantRules || [],
+      car_loans: state.carLoans || [],
       updated_at: new Date().toISOString()
     });
   } catch(e) {
@@ -1427,6 +1560,7 @@ async function loadFromSupabase() {
       state.config = row.config || state.config;
       if (row.settlements) state.settlements = row.settlements;
       if (row.merchant_rules) state.merchantRules = row.merchant_rules;
+      if (row.car_loans) state.carLoans = row.car_loans;
       state._lastSaved = new Date(row.updated_at).getTime();
       saveLocal();
       state.synced = true;
@@ -1519,6 +1653,7 @@ function showPage(id, callerEl) {
   if (id === 'tracker') renderTracker();
   if (id === 'forecast') renderForecast();
   if (id === 'mortgage') renderMortgage();
+  if (id === 'carfinance') renderCarFinance();
   if (id === 'budget') renderBudgetSettings();
   if (id === 'import') populateImportMonthSel();
   if (id === 'savings') renderSavings();
@@ -1577,15 +1712,19 @@ function getPersonIncome(tab) {
 }
 
 function getPersonExpenses(tab, budgetItems, mortMonthly) {
-  // 4-tab model: combined=all 100%, shared=Shared only, blayne=Blayne only, sophie=Sophie only
+  // 4-tab model:
+  //   combined = all 100%
+  //   shared   = Shared items at 100% (2UP only)
+  //   blayne   = Blayne 100% + Shared 50% (his fair share)
+  //   sophie   = Sophie 100% + Shared 50% (her fair share)
   let fixed = 0, variable = 0;
   budgetItems.forEach(item => {
     const mo = item.desc === 'Mortgage repayment' ? mortMonthly : (item.monthly || 0);
     let share = 0;
     if (tab === 'combined') share = mo;
     else if (tab === 'shared') share = item.owner === 'Shared' ? mo : 0;
-    else if (tab === 'blayne') share = item.owner === 'Blayne' ? mo : 0;
-    else if (tab === 'sophie') share = item.owner === 'Sophie' ? mo : 0;
+    else if (tab === 'blayne') share = item.owner === 'Blayne' ? mo : (item.owner === 'Shared' ? mo * 0.5 : 0);
+    else if (tab === 'sophie') share = item.owner === 'Sophie' ? mo : (item.owner === 'Shared' ? mo * 0.5 : 0);
     if (item.type === 'Fixed' || item.desc === 'Mortgage repayment') fixed += share;
     else variable += share;
   });
@@ -1595,9 +1734,17 @@ function getPersonExpenses(tab, budgetItems, mortMonthly) {
 function getPersonActuals(tab, txns) {
   return txns.reduce((s, t) => {
     if (tab === 'combined') return s + t.amount;
-    if (tab === 'shared' && t.owner === 'Shared') return s + t.amount;
-    if (tab === 'blayne' && t.owner === 'Blayne') return s + t.amount;
-    if (tab === 'sophie' && t.owner === 'Sophie') return s + t.amount;
+    if (tab === 'shared') return s + (t.owner === 'Shared' ? t.amount : 0);
+    if (tab === 'blayne') {
+      if (t.owner === 'Blayne') return s + t.amount;
+      if (t.owner === 'Shared') return s + t.amount * 0.5;
+      return s;
+    }
+    if (tab === 'sophie') {
+      if (t.owner === 'Sophie') return s + t.amount;
+      if (t.owner === 'Shared') return s + t.amount * 0.5;
+      return s;
+    }
     return s;
   }, 0);
 }
@@ -1657,8 +1804,8 @@ function renderDashboard() {
     let share = 0;
     if (tab === 'combined') share = mo;
     else if (tab === 'shared') share = item.owner === 'Shared' ? mo : 0;
-    else if (tab === 'blayne') share = item.owner === 'Blayne' ? mo : 0;
-    else if (tab === 'sophie') share = item.owner === 'Sophie' ? mo : 0;
+    else if (tab === 'blayne') share = item.owner === 'Blayne' ? mo : (item.owner === 'Shared' ? mo * 0.5 : 0);
+    else if (tab === 'sophie') share = item.owner === 'Sophie' ? mo : (item.owner === 'Shared' ? mo * 0.5 : 0);
     if (catTotals[item.cat] !== undefined) catTotals[item.cat] += share;
   });
   const maxCat = Math.max(...Object.values(catTotals), 1);
@@ -1745,25 +1892,43 @@ function renderCategoryAlerts(year, month, tab, expenses) {
   var catActuals = {};
   VAR_CATS.forEach(function(c) { catActuals[c] = 0; });
   txns.forEach(function(t) {
-    if (tab !== 'combined') {
-      var ownerFilter = tab === 'shared' ? 'Shared' : (tab === 'blayne' ? 'Blayne' : 'Sophie');
-      if (t.owner !== ownerFilter) return;
+    if (t.type === 'Fixed') return; // Fixed txns don't count toward variable
+    var share = 1;
+    if (tab === 'shared') {
+      if (t.owner !== 'Shared') return;
+    } else if (tab === 'blayne') {
+      if (t.owner === 'Blayne') share = 1;
+      else if (t.owner === 'Shared') share = 0.5;
+      else return;
+    } else if (tab === 'sophie') {
+      if (t.owner === 'Sophie') share = 1;
+      else if (t.owner === 'Shared') share = 0.5;
+      else return;
     }
-    if (catActuals[t.cat] !== undefined) catActuals[t.cat] += t.amount;
-    else catActuals['Other'] += t.amount;
+    if (catActuals[t.cat] !== undefined) catActuals[t.cat] += t.amount * share;
+    else catActuals['Other'] += t.amount * share;
   });
 
   // Get variable budget per category for this tab view
   var varBudget = {};
   if (tab === 'combined') {
     VAR_CATS.forEach(function(c) { varBudget[c] = VAR_BUDGET_MAP[c] || 0; });
-  } else {
+  } else if (tab === 'shared') {
     VAR_CATS.forEach(function(c) { varBudget[c] = 0; });
-    var ownerFilter = tab === 'shared' ? 'Shared' : (tab === 'blayne' ? 'Blayne' : 'Sophie');
     state.budgetItems.filter(function(i) { return i.type === 'Variable'; }).forEach(function(item) {
-      if (item.owner !== ownerFilter) return;
+      if (item.owner !== 'Shared') return;
       var catKey = item.varCat || mapBudgetItemToVarCat(item.desc);
       if (varBudget[catKey] !== undefined) varBudget[catKey] += (item.monthly || 0);
+    });
+  } else {
+    VAR_CATS.forEach(function(c) { varBudget[c] = 0; });
+    var person = tab === 'blayne' ? 'Blayne' : 'Sophie';
+    state.budgetItems.filter(function(i) { return i.type === 'Variable'; }).forEach(function(item) {
+      var catKey = item.varCat || mapBudgetItemToVarCat(item.desc);
+      var share = 0;
+      if (item.owner === person) share = item.monthly || 0;
+      else if (item.owner === 'Shared') share = (item.monthly || 0) * 0.5;
+      if (varBudget[catKey] !== undefined) varBudget[catKey] += share;
     });
   }
 
@@ -1821,12 +1986,21 @@ function renderRollingAverages(year, month, tab) {
     var catTotals = {};
     VAR_CATS.forEach(function(c) { catTotals[c] = 0; });
     txns.forEach(function(t) {
-      if (tab !== 'combined') {
-        var ownerFilter = tab === 'shared' ? 'Shared' : (tab === 'blayne' ? 'Blayne' : 'Sophie');
-        if (t.owner !== ownerFilter) return;
+      if (t.type === 'Fixed') return;
+      var share = 1;
+      if (tab === 'shared') {
+        if (t.owner !== 'Shared') return;
+      } else if (tab === 'blayne') {
+        if (t.owner === 'Blayne') share = 1;
+        else if (t.owner === 'Shared') share = 0.5;
+        else return;
+      } else if (tab === 'sophie') {
+        if (t.owner === 'Sophie') share = 1;
+        else if (t.owner === 'Shared') share = 0.5;
+        else return;
       }
-      if (catTotals[t.cat] !== undefined) catTotals[t.cat] += t.amount;
-      else catTotals['Other'] += t.amount;
+      if (catTotals[t.cat] !== undefined) catTotals[t.cat] += t.amount * share;
+      else catTotals['Other'] += t.amount * share;
     });
 
     monthsData.push({ year: y, month: m, cats: catTotals });
@@ -2027,15 +2201,16 @@ function setTrackerTab(tab) {
 // Get share of an expense for the current tab
 // 4-tab model:
 //   combined → everything at 100%
-//   shared   → only Shared items at 100%
-//   blayne   → only Blayne's items (NO shared halving)
-//   sophie   → only Sophie's items (NO shared halving)
+//   shared   → only Shared items at 100% (2UP joint view)
+//   blayne   → Blayne items at 100% + Shared items at 50% (his fair share)
+//   sophie   → Sophie items at 100% + Shared items at 50% (her fair share)
 function getItemShare(item, mortMonthly) {
   const mo = item.desc === 'Mortgage repayment' ? mortMonthly : (item.monthly || 0);
   if (trackerTab === 'combined') return mo;
   if (trackerTab === 'shared') return item.owner === 'Shared' ? mo : 0;
   const person = trackerTab === 'blayne' ? 'Blayne' : 'Sophie';
   if (item.owner === person) return mo;
+  if (item.owner === 'Shared') return mo * 0.5;
   return 0;
 }
 
@@ -2046,17 +2221,26 @@ function getPersonVarBudget() {
   const result = {};
   cats.forEach(c => result[c] = 0);
 
-  let ownerFilter;
-  if (trackerTab === 'shared') ownerFilter = 'Shared';
-  else if (trackerTab === 'blayne') ownerFilter = 'Blayne';
-  else ownerFilter = 'Sophie';
-
-  state.budgetItems.forEach(item => {
-    if (item.type !== 'Variable') return;
-    if (item.owner !== ownerFilter) return;
-    var catKey = item.varCat || mapBudgetItemToVarCat(item.desc);
-    if (result[catKey] !== undefined) result[catKey] += (item.monthly || 0);
-  });
+  if (trackerTab === 'shared') {
+    // Shared tab: only Shared items at 100%
+    state.budgetItems.forEach(item => {
+      if (item.type !== 'Variable') return;
+      if (item.owner !== 'Shared') return;
+      var catKey = item.varCat || mapBudgetItemToVarCat(item.desc);
+      if (result[catKey] !== undefined) result[catKey] += (item.monthly || 0);
+    });
+  } else {
+    // Personal tab: own items at 100% + Shared items at 50%
+    const person = trackerTab === 'blayne' ? 'Blayne' : 'Sophie';
+    state.budgetItems.forEach(item => {
+      if (item.type !== 'Variable') return;
+      var catKey = item.varCat || mapBudgetItemToVarCat(item.desc);
+      let share = 0;
+      if (item.owner === person) share = item.monthly || 0;
+      else if (item.owner === 'Shared') share = (item.monthly || 0) * 0.5;
+      if (result[catKey] !== undefined) result[catKey] += share;
+    });
+  }
   return result;
 }
 
@@ -2095,8 +2279,8 @@ function renderTracker() {
   // ── Transactions filtered to current tab ──
   // combined → all txns
   // shared   → only owner='Shared' (2UP joint account)
-  // blayne   → only owner='Blayne' (his personal accounts)
-  // sophie   → only owner='Sophie' (her personal accounts)
+  // blayne   → owner='Blayne' (his personal) + owner='Shared' at 50%
+  // sophie   → owner='Sophie' (her personal) + owner='Shared' at 50%
   let txns;
   if (tab === 'combined') {
     txns = allTxns;
@@ -2104,18 +2288,21 @@ function renderTracker() {
     txns = allTxns.filter(t => t.owner === 'Shared');
   } else {
     const ownerFilter = tab === 'blayne' ? 'Blayne' : 'Sophie';
-    txns = allTxns.filter(t => t.owner === ownerFilter);
+    txns = allTxns.filter(t => t.owner === ownerFilter || t.owner === 'Shared');
   }
 
   // ── Actuals from direct overrides + transactions ──
-  // No more halving — each txn counts at 100% in its respective tab
+  // Personal tabs halve Shared transactions to reflect 50/50 fair share
   const monthKey = getMonthKey(year, month);
   const directActuals = (state.directActuals && state.directActuals[monthKey]) || {};
   const txnCatTotals = {};
   VAR_CATS.forEach(c => txnCatTotals[c] = 0);
   txns.forEach(t => {
-    if (txnCatTotals[t.cat] !== undefined) txnCatTotals[t.cat] += t.amount;
-    else txnCatTotals['Other'] += t.amount;
+    const isFixed = t.type === 'Fixed';
+    if (isFixed) return; // Fixed transactions don't count toward variable actuals
+    const share = (t.owner === 'Shared' && (tab === 'blayne' || tab === 'sophie')) ? 0.5 : 1;
+    if (txnCatTotals[t.cat] !== undefined) txnCatTotals[t.cat] += t.amount * share;
+    else txnCatTotals['Other'] += t.amount * share;
   });
   // Transactions always take priority. Direct overrides are only used when
   // there are ZERO transactions for that category AND a manual override exists.
@@ -2144,15 +2331,15 @@ function renderTracker() {
       if (tab === 'shared') {
         barColor = 'green';
         barName = 'Shared (2UP)';
-        barDesc = 'Shows only spending from your 2UP joint account against shared budget items. Personal account spending is excluded.';
+        barDesc = 'Shows only spending from your 2UP joint account against shared budget items at 100%.';
       } else if (tab === 'blayne') {
         barColor = 'blue';
-        barName = 'Blayne personal';
-        barDesc = "Shows only Blayne's personal account spending. Shared 2UP expenses appear in the Shared tab, not here.";
+        barName = 'Blayne fair share';
+        barDesc = "Shows Blayne's personal spending plus 50% of all shared (2UP) expenses — his fair share of the household.";
       } else {
         barColor = 'amber';
-        barName = 'Sophie personal';
-        barDesc = "Shows only Sophie's personal account spending. Shared 2UP expenses appear in the Shared tab, not here.";
+        barName = 'Sophie fair share';
+        barDesc = "Shows Sophie's personal spending plus 50% of all shared (2UP) expenses — her fair share of the household.";
       }
       ctxBar.style.background = 'var(--' + barColor + '-bg)';
       ctxBar.style.color = 'var(--' + barColor + ')';
@@ -2237,7 +2424,8 @@ function renderTracker() {
   visibleFixed.sort((a, b) => getItemShare(b, mortMonthly) - getItemShare(a, mortMonthly));
   fixedTbody.innerHTML = visibleFixed.map(item => {
     const mo = getItemShare(item, mortMonthly);
-    return '<tr><td>' + item.desc + '</td><td><span class="badge badge-gray">' + item.owner + '</span></td><td class="num">' + fmt(mo) + '</td></tr>';
+    const ownerLabel = (tab === 'blayne' || tab === 'sophie') && item.owner === 'Shared' ? 'Shared (50%)' : item.owner;
+    return '<tr><td>' + item.desc + '</td><td><span class="badge badge-gray">' + ownerLabel + '</span></td><td class="num">' + fmt(mo) + '</td></tr>';
   }).join('') + '<tr class="total-row"><td>Total fixed</td><td></td><td class="num">' + fmt(totalFixed) + '</td></tr>';
 
   // ── Transactions list (filtered + sorted) ──
@@ -2247,13 +2435,16 @@ function renderTracker() {
   // Re-index against full allTxns for delete to work correctly
   txnTbody.innerHTML = sorted.map(t => {
     const realIdx = allTxns.indexOf(t);
+    const sharedNote = t.owner === 'Shared' && (tab === 'blayne' || tab === 'sophie') ? ' <span style="font-size:10px;color:var(--text3);">(50%)</span>' : '';
+    const fixedBadge = t.type === 'Fixed' ? ' <span style="font-size:9px;background:var(--blue-bg);color:var(--blue);padding:1px 5px;border-radius:3px;">FIXED</span>' : '';
+    const reimbBadge = t.amount < 0 ? ' <span style="font-size:9px;background:var(--green-bg);color:var(--green);padding:1px 5px;border-radius:3px;">REIMB</span>' : '';
     return '<tr>' +
       '<td>' + t.date + '</td>' +
-      '<td>' + t.desc + '</td>' +
+      '<td>' + t.desc + fixedBadge + reimbBadge + '</td>' +
       '<td><span class="badge badge-gray">' + t.cat + '</span></td>' +
-      '<td>' + t.owner + '</td>' +
-      '<td class="num">' + fmtDec(t.amount) + '</td>' +
-      '<td><button class="btn btn-sm btn-danger" onclick="deleteTransaction(\'' + year + '-' + month + '\',' + realIdx + ')">×</button></td>' +
+      '<td>' + t.owner + sharedNote + '</td>' +
+      '<td class="num"' + (t.amount < 0 ? ' style="color:var(--green);"' : '') + '>' + fmtDec(t.amount) + '</td>' +
+      '<td><button class="btn btn-sm btn-danger" onclick="deleteTransaction(\'' + getMonthKey(year, month) + '\',' + realIdx + ')">×</button></td>' +
     '</tr>';
   }).join('');
 }
@@ -2261,6 +2452,34 @@ function renderTracker() {
 // ════════════════ FORECAST ════════════════
 
 function renderForecast() {
+  // Initialize sliders from state.config on first render so the centre matches
+  // current actual income/rate from Budget Settings
+  const blayneSlider = document.getElementById('fc-blayne');
+  const sophieSlider = document.getElementById('fc-sophie');
+  const rateSlider = document.getElementById('fc-rate');
+  if (blayneSlider && !blayneSlider.dataset.fcInit) {
+    const cfg = state.config || {};
+    const bAmt = Math.round(cfg.blayneAmt || 1592);
+    blayneSlider.min = Math.max(100, Math.floor(bAmt * 0.5));
+    blayneSlider.max = Math.ceil(bAmt * 1.5);
+    blayneSlider.value = bAmt;
+    blayneSlider.dataset.fcInit = '1';
+  }
+  if (sophieSlider && !sophieSlider.dataset.fcInit) {
+    const cfg = state.config || {};
+    const sAmt = Math.round(cfg.sophieAmt || 2671.72);
+    sophieSlider.min = Math.max(100, Math.floor(sAmt * 0.5));
+    sophieSlider.max = Math.ceil(sAmt * 1.5);
+    sophieSlider.value = sAmt;
+    sophieSlider.dataset.fcInit = '1';
+  }
+  if (rateSlider && !rateSlider.dataset.fcInit) {
+    const cfg = state.config || {};
+    const r = (cfg.rate || 5.80);
+    rateSlider.value = r.toFixed(2);
+    rateSlider.dataset.fcInit = '1';
+  }
+
   const year = parseInt(document.getElementById('forecast-year').value);
   const blayneAmt = parseFloat(document.getElementById('fc-blayne').value);
   const sophieAmt = parseFloat(document.getElementById('fc-sophie').value);
@@ -2406,6 +2625,132 @@ function updateMortgage() {
     }).join('')}</tbody>`;
 }
 
+// ════════════════ CAR FINANCE ════════════════
+
+function renderCarFinance() {
+  const wrap = document.getElementById('cf-loans-wrap');
+  const metricsEl = document.getElementById('cf-metrics');
+  const emptyInfo = document.getElementById('cf-empty-info');
+  if (!wrap) return;
+
+  const loans = state.carLoans || [];
+
+  if (loans.length === 0) {
+    if (emptyInfo) emptyInfo.style.display = 'block';
+    if (metricsEl) metricsEl.innerHTML = '';
+    wrap.innerHTML = '';
+    return;
+  }
+
+  if (emptyInfo) emptyInfo.style.display = 'none';
+
+  // Aggregate metrics
+  let totalBalance = 0, totalRepayMonthly = 0, totalInterest = 0;
+  loans.forEach(function(loan) {
+    const calc = calcCarLoan(loan);
+    totalBalance += loan.balance || 0;
+    totalRepayMonthly += calc.monthly;
+    totalInterest += calc.totalInterest;
+  });
+
+  if (metricsEl) {
+    metricsEl.innerHTML =
+      '<div class="metric"><div class="metric-label">total balance</div><div class="metric-value">' + fmt(totalBalance) + '</div><div class="metric-sub">' + loans.length + ' loan' + (loans.length === 1 ? '' : 's') + '</div></div>' +
+      '<div class="metric"><div class="metric-label">total repayments / month</div><div class="metric-value">' + fmt(totalRepayMonthly) + '</div><div class="metric-sub">across all loans</div></div>' +
+      '<div class="metric"><div class="metric-label">total interest remaining</div><div class="metric-value neg">' + fmt(totalInterest) + '</div><div class="metric-sub">to be paid over loan terms</div></div>';
+  }
+
+  wrap.innerHTML = loans.map(function(loan, i) {
+    const calc = calcCarLoan(loan);
+    const periodLabel = loan.freq === 'fortnightly' ? '/fn' : loan.freq === 'weekly' ? '/wk' : '/mo';
+    const periodAmt = loan.freq === 'fortnightly' ? calc.fortnightly : loan.freq === 'weekly' ? calc.weekly : calc.monthly;
+    const payoffDate = new Date();
+    payoffDate.setMonth(payoffDate.getMonth() + Math.round((loan.term || 0) * 12));
+    const payoffStr = payoffDate.toLocaleDateString('en-AU', { month: 'short', year: 'numeric' });
+    return '<div class="card mb-16">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">' +
+        '<div>' +
+          '<div style="font-size:16px;font-weight:600;">' + (loan.name || 'Unnamed loan') + '</div>' +
+          '<div style="font-size:12px;color:var(--text3);margin-top:2px;"><span class="badge badge-gray">' + (loan.owner || 'Shared') + '</span> · ' + (loan.rate || 0).toFixed(2) + '% p.a. · ' + (loan.term || 0) + 'yr remaining</div>' +
+        '</div>' +
+        '<button class="btn btn-sm btn-danger" onclick="deleteCarLoan(' + i + ')">× Remove</button>' +
+      '</div>' +
+      '<div class="grid-2" style="gap:12px;">' +
+        '<div class="metric"><div class="metric-label">current balance</div><div class="metric-value">' + fmt(loan.balance || 0) + '</div><div class="metric-sub">of ' + fmt(loan.amount || 0) + ' original</div></div>' +
+        '<div class="metric"><div class="metric-label">repayment</div><div class="metric-value">' + fmt(periodAmt) + periodLabel + '</div><div class="metric-sub">' + fmt(calc.monthly) + '/month equivalent</div></div>' +
+        '<div class="metric"><div class="metric-label">total interest</div><div class="metric-value neg">' + fmt(calc.totalInterest) + '</div><div class="metric-sub">remaining over loan term</div></div>' +
+        '<div class="metric"><div class="metric-label">payoff date</div><div class="metric-value">' + payoffStr + '</div><div class="metric-sub">at current rate</div></div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+// Calculate car loan payments using standard amortisation (P*r) / (1 - (1+r)^-n)
+function calcCarLoan(loan) {
+  const balance = loan.balance || 0;
+  const annualRate = (loan.rate || 0) / 100;
+  const years = loan.term || 0;
+  if (balance <= 0 || annualRate < 0 || years <= 0) {
+    return { monthly: 0, fortnightly: 0, weekly: 0, totalInterest: 0 };
+  }
+  const monthlyRate = annualRate / 12;
+  const n = years * 12;
+  let monthly;
+  if (monthlyRate === 0) {
+    monthly = balance / n;
+  } else {
+    monthly = (balance * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -n));
+  }
+  const totalPaid = monthly * n;
+  const totalInterest = totalPaid - balance;
+  return {
+    monthly: monthly,
+    fortnightly: monthly * 12 / 26,
+    weekly: monthly * 12 / 52,
+    totalInterest: totalInterest
+  };
+}
+
+function openAddCarLoan() {
+  document.getElementById('cl-name').value = '';
+  document.getElementById('cl-amount').value = '';
+  document.getElementById('cl-balance').value = '';
+  document.getElementById('cl-rate').value = '';
+  document.getElementById('cl-term').value = '';
+  document.getElementById('cl-freq').value = 'monthly';
+  document.getElementById('cl-owner').value = 'Shared';
+  document.getElementById('modal-car-loan').classList.add('open');
+}
+
+function saveCarLoan() {
+  const loan = {
+    name: document.getElementById('cl-name').value.trim(),
+    owner: document.getElementById('cl-owner').value,
+    amount: parseFloat(document.getElementById('cl-amount').value) || 0,
+    balance: parseFloat(document.getElementById('cl-balance').value) || 0,
+    rate: parseFloat(document.getElementById('cl-rate').value) || 0,
+    term: parseFloat(document.getElementById('cl-term').value) || 0,
+    freq: document.getElementById('cl-freq').value,
+    createdAt: new Date().toISOString()
+  };
+  if (!loan.name || loan.balance <= 0) {
+    alert('Please enter a name and current balance');
+    return;
+  }
+  if (!state.carLoans) state.carLoans = [];
+  state.carLoans.push(loan);
+  saveState();
+  closeModal('modal-car-loan');
+  renderCarFinance();
+}
+
+function deleteCarLoan(idx) {
+  if (!confirm('Remove this car loan?')) return;
+  state.carLoans.splice(idx, 1);
+  saveState();
+  renderCarFinance();
+}
+
 // ════════════════ BUDGET SETTINGS ════════════════
 
 const CATS_ORDER = ['Housing','Living','Transport','Subscriptions','Financial','Other'];
@@ -2425,6 +2770,21 @@ function inNum(val, idx, field) {
   return `<input type="number" data-idx="${idx}" data-field="${field}" value="${val!=null?val:''}" min="0" step="0.01" oninput="updateBudgetItem(this)" style="font-size:12px;padding:4px 6px;border:1px solid var(--border2);border-radius:5px;width:80px;text-align:right;background:var(--surface);color:var(--text);font-family:var(--mono);">`;
 }
 
+// Budget settings filter state
+var budgetItemFilter = { type: 'all', owner: 'all' };
+
+function setBudgetFilter(field, val) {
+  budgetItemFilter[field] = val;
+  // Update button styles
+  var prefix = field === 'type' ? 'bf-type-btn' : 'bf-owner-btn';
+  document.querySelectorAll('.' + prefix).forEach(function(btn) {
+    var isActive = btn.dataset.val === val;
+    btn.style.background = isActive ? 'var(--accent)' : 'var(--surface)';
+    btn.style.color = isActive ? '#fff' : 'var(--text2)';
+  });
+  renderBudgetSettings();
+}
+
 function renderBudgetSettings() {
   const cfg = state.config;
   document.getElementById('cfg-blayne-amt').value = cfg.blayneAmt;
@@ -2440,10 +2800,26 @@ function renderBudgetSettings() {
   const wrap = document.getElementById('budget-items-wrap');
   if (!wrap) return;
 
+  // Apply filters
+  const filteredItems = state.budgetItems.map((item, i) => ({ item, i })).filter(({item}) => {
+    if (budgetItemFilter.type !== 'all' && item.type !== budgetItemFilter.type) return false;
+    if (budgetItemFilter.owner !== 'all' && item.owner !== budgetItemFilter.owner) return false;
+    return true;
+  });
+
+  // Update count display
+  const countEl = document.getElementById('budget-filter-count');
+  if (countEl) {
+    const total = state.budgetItems.length;
+    countEl.textContent = filteredItems.length === total
+      ? 'Showing all ' + total + ' items'
+      : 'Showing ' + filteredItems.length + ' of ' + total + ' items';
+  }
+
   // Group by category
   const grouped = {};
   CATS_ORDER.forEach(c => grouped[c] = []);
-  state.budgetItems.forEach((item, i) => {
+  filteredItems.forEach(({item, i}) => {
     const c = grouped[item.cat] ? item.cat : 'Other';
     grouped[c].push({ item, i });
   });
@@ -2558,6 +2934,9 @@ function openAddExpense() {
   var catSel = document.getElementById('exp-cat');
   var cats = getVarCats();
   catSel.innerHTML = cats.map(function(c) { return '<option>' + c + '</option>'; }).join('');
+  // Reset type to Variable by default
+  var typeSel = document.getElementById('exp-type');
+  if (typeSel) typeSel.value = 'Variable';
   document.getElementById('modal-expense').classList.add('open');
 }
 
@@ -2566,13 +2945,20 @@ function saveExpense() {
   const desc = document.getElementById('exp-desc').value.trim();
   const cat = document.getElementById('exp-cat').value;
   const owner = document.getElementById('exp-owner').value;
+  const typeSel = document.getElementById('exp-type');
+  let type = typeSel ? typeSel.value : 'Variable';
+  // Auto-detect if not explicitly set: if description matches a Fixed budget item, mark Fixed
+  if (type === 'Variable') {
+    const auto = detectIfFixed(desc);
+    if (auto === 'Fixed') type = 'Fixed';
+  }
   const amount = parseFloat(document.getElementById('exp-amount').value);
   if (!date || !desc || isNaN(amount) || amount <= 0) { alert('Please fill in all fields'); return; }
 
   const [y, m] = date.split('-').map(Number);
   const key = getMonthKey(y, m - 1); // m from date is 1-indexed, getMonthKey expects 0-indexed
   if (!state.transactions[key]) state.transactions[key] = [];
-  state.transactions[key].push({ date, desc, cat, owner, amount });
+  state.transactions[key].push({ date, desc, cat, owner, amount, type });
   saveState();
   closeModal('modal-expense');
   renderTracker();
@@ -3120,7 +3506,8 @@ function confirmImport() {
       desc: t.desc,
       cat: t.cat,
       owner: t.owner,
-      amount: parseFloat(t.amount)
+      amount: parseFloat(t.amount),
+      type: t.type || detectIfFixed(t.desc)
     });
     existingKeys[key] = true; // Prevent dupes within this batch too
     added++;
@@ -3461,24 +3848,10 @@ function hideLoginScreen() {
 }
 
 function addSignOutButton() {
-  const nav = document.querySelector('.nav-tabs');
-  if (!nav || document.getElementById('signout-btn')) return;
-  const btn = document.createElement('button');
-  btn.id = 'signout-btn';
-  btn.className = 'nav-tab';
-  btn.textContent = 'Sign out';
-  btn.style.cssText = 'margin-left:auto;color:var(--text3);';
-  btn.onclick = async function() {
-    if (window._pollInterval) clearInterval(window._pollInterval);
-    await sbSignOut();
-    showLoginScreen();
-    const em = document.getElementById('login-email');
-    const pw = document.getElementById('login-password');
-    if (em) em.value = '';
-    if (pw) pw.value = '';
-    setTimeout(() => { if(em) em.focus(); }, 100);
-  };
-  nav.appendChild(btn);
+  // Sign-out button is now hardcoded in the nav HTML at line ~296.
+  // This function used to add a duplicate dynamically; kept as a no-op
+  // for backward compatibility with existing initApp() callers.
+  return;
 }
 
 async function doLogin() {
@@ -3588,9 +3961,15 @@ async function fetchUpRawTransactions(owner, since, until) {
   let txns = [];
   if (owner === 'Shared') {
     var jointAccounts = allAccounts.filter(function(a) { return a.attributes.ownershipType === 'JOINT'; });
+    // Build Blayne's personal IDs set for settlement transfer matching
+    var blaynePersonalIds = {};
+    allAccounts.filter(function(a) { return a.attributes.ownershipType === 'INDIVIDUAL'; })
+      .forEach(function(a) { blaynePersonalIds[a.id] = true; });
     for (const acct of jointAccounts) {
       const path = '/accounts/' + acct.id + '/transactions?filter[status]=SETTLED&filter[since]=' + encodeURIComponent(since) + '&filter[until]=' + encodeURIComponent(until) + '&page[size]=100';
       const acctTxns = await upGetAll(path, token);
+      // Capture settlement transfer-ins from this batch (manual import path)
+      try { captureSettlementTransfers(acctTxns, blaynePersonalIds); } catch(e) { console.warn('[Settle] capture failed:', e); }
       txns = txns.concat(acctTxns);
     }
   } else {
@@ -3635,15 +4014,64 @@ function parseUpTransactions(txns, owner) {
     var amt = Math.abs(rawAmt);
     var cat = categorizeMerchant(desc);
     var isCredit = rawAmt > 0;
+    var type = detectIfFixed(desc);
     return {
       date: date,
       desc: desc + (isCredit ? ' (reimbursement)' : ''),
       cat: cat,
       owner: owner,
       amount: isCredit ? -amt : amt,
+      type: type,
       _upId: t.id  // Track Up transaction ID to prevent duplicates
     };
   });
+}
+
+// ── Settlement capture helper: extract transfers into 2UP from raw joint txns ──
+// Reusable from both runAutoSync (daily auto-fire) and fetchUpTransactions (manual import)
+function captureSettlementTransfers(rawJointTxns, blaynePersonalIds) {
+  if (!rawJointTxns || rawJointTxns.length === 0) return 0;
+  var transferIns = [];
+  rawJointTxns.forEach(function(t) {
+    var amt = parseFloat(t.attributes.amount.value);
+    if (amt <= 0) return; // Only credits (money in)
+    var transferRel = t.relationships && t.relationships.transferAccount && t.relationships.transferAccount.data;
+    var date = t.attributes.createdAt.slice(0, 10);
+    if (!transferRel) {
+      // Not a formal transfer — try description matching
+      var desc = (t.attributes.description || '').toLowerCase();
+      if (desc.indexOf('blayne') !== -1) {
+        transferIns.push({ date: date, who: 'blayne', amount: amt, id: t.id });
+      } else if (desc.indexOf('sophie') !== -1) {
+        transferIns.push({ date: date, who: 'sophie', amount: amt, id: t.id });
+      }
+      return;
+    }
+    var srcId = transferRel.id;
+    if (blaynePersonalIds && blaynePersonalIds[srcId]) {
+      transferIns.push({ date: date, who: 'blayne', amount: amt, id: t.id });
+    } else {
+      transferIns.push({ date: date, who: 'sophie', amount: amt, id: t.id });
+    }
+  });
+
+  if (transferIns.length === 0) return 0;
+
+  if (!state.settlements) state.settlements = {};
+  var seenIds = state._settlementTxIds || {};
+  var added = 0;
+  transferIns.forEach(function(ti) {
+    if (seenIds[ti.id]) return;
+    seenIds[ti.id] = true;
+    var parts = ti.date.split('-').map(Number);
+    var smk = getMonthKey(parts[0], parts[1] - 1);
+    if (!state.settlements[smk]) state.settlements[smk] = { blayne: 0, sophie: 0, _auto: true };
+    state.settlements[smk][ti.who] = (state.settlements[smk][ti.who] || 0) + ti.amount;
+    state.settlements[smk]._auto = true;
+    added++;
+  });
+  state._settlementTxIds = seenIds;
+  return added;
 }
 
 // ── Manual fetch (Import tab button) ──
@@ -3803,7 +4231,6 @@ async function runAutoSync() {
       }
 
       // Fetch 2UP joint transactions
-      var jointTransferIns = []; // Capture transfer-ins for settlement tracking
       if (jointAccounts.length > 0) {
         progressText.textContent = 'Syncing 2UP joint account...';
         // Build a set of Blayne's personal account IDs for transfer-source matching
@@ -3814,52 +4241,11 @@ async function runAutoSync() {
           var jPath = '/accounts/' + jointAccounts[ja].id + '/transactions?filter[status]=SETTLED&filter[since]=' + encodeURIComponent(since) + '&filter[until]=' + encodeURIComponent(until) + '&page[size]=100';
           var jaTxns = await upGetAll(jPath, blayneToken);
 
-          // Capture transfer-ins (positive amounts coming from a personal account)
-          jaTxns.forEach(function(t) {
-            var amt = parseFloat(t.attributes.amount.value);
-            if (amt <= 0) return; // Only credits (money in)
-            var transferRel = t.relationships && t.relationships.transferAccount && t.relationships.transferAccount.data;
-            if (!transferRel) {
-              // Not a transfer — might be a description-tagged deposit
-              var desc = (t.attributes.description || '').toLowerCase();
-              var date = t.attributes.createdAt.slice(0, 10);
-              if (desc.indexOf('blayne') !== -1) {
-                jointTransferIns.push({ date: date, who: 'blayne', amount: amt, id: t.id });
-              } else if (desc.indexOf('sophie') !== -1) {
-                jointTransferIns.push({ date: date, who: 'sophie', amount: amt, id: t.id });
-              }
-              return;
-            }
-            // It IS a transfer — figure out who from
-            var srcId = transferRel.id;
-            var date = t.attributes.createdAt.slice(0, 10);
-            if (blaynePersonalIds[srcId]) {
-              jointTransferIns.push({ date: date, who: 'blayne', amount: amt, id: t.id });
-            } else {
-              // Not Blayne's — assume Sophie (her personal accounts use a different token)
-              jointTransferIns.push({ date: date, who: 'sophie', amount: amt, id: t.id });
-            }
-          });
+          // Capture transfer-ins for settlement (uses shared helper)
+          captureSettlementTransfers(jaTxns, blaynePersonalIds);
 
           var jaFiltered = filterUpTransactions(jaTxns);
           allNew = allNew.concat(parseUpTransactions(jaFiltered, 'Shared'));
-        }
-
-        // Aggregate transfer-ins by month and persist to state.settlements
-        if (jointTransferIns.length > 0) {
-          if (!state.settlements) state.settlements = {};
-          // Track which transfer IDs we've already counted (to avoid double-count on re-sync)
-          var seenIds = state._settlementTxIds || {};
-          jointTransferIns.forEach(function(ti) {
-            if (seenIds[ti.id]) return;
-            seenIds[ti.id] = true;
-            var parts = ti.date.split('-').map(Number);
-            var smk = getMonthKey(parts[0], parts[1] - 1);
-            if (!state.settlements[smk]) state.settlements[smk] = { blayne: 0, sophie: 0, _auto: true };
-            state.settlements[smk][ti.who] = (state.settlements[smk][ti.who] || 0) + ti.amount;
-            state.settlements[smk]._auto = true;
-          });
-          state._settlementTxIds = seenIds;
         }
       }
     }
@@ -3947,7 +4333,8 @@ function saveAutoSyncTransactions(txns) {
       desc: t.desc,
       cat: t.cat,
       owner: t.owner,
-      amount: t.amount
+      amount: t.amount,
+      type: t.type || detectIfFixed(t.desc)
     });
   });
   saveState();
@@ -3998,7 +4385,7 @@ function confirmAutoSync() {
         // Don't add duplicate rules
         var exists = state.merchantRules.some(function(r) { return r.pattern.toLowerCase() === pattern; });
         if (!exists) {
-          state.merchantRules.push({ pattern: pattern, category: sel.value });
+          state.merchantRules.push({ pattern: pattern, cat: sel.value });
         }
       }
     }
@@ -4065,6 +4452,27 @@ function renderSettlement(year, month) {
   card.style.display = 'block';
   if (labelEl) labelEl.textContent = MONTHS_FULL[month] + ' ' + year;
 
+  // ── YTD totals ──
+  var ytdBlayne = 0, ytdSophie = 0;
+  if (state.settlements) {
+    var yearPrefix = year + '-';
+    Object.keys(state.settlements).forEach(function(k) {
+      if (k.indexOf(yearPrefix) !== 0) return;
+      var s = state.settlements[k] || {};
+      ytdBlayne += (s.blayne || 0);
+      ytdSophie += (s.sophie || 0);
+    });
+  }
+  var ytdDiff = ytdBlayne - ytdSophie;
+  var ytdMsg;
+  if (Math.abs(ytdDiff) < 1) {
+    ytdMsg = '<span style="color:var(--green);">✓ Even YTD</span>';
+  } else if (ytdDiff > 0) {
+    ytdMsg = '<span style="color:var(--accent);">Sophie owes Blayne <strong>' + fmt(ytdDiff / 2) + '</strong> YTD</span>';
+  } else {
+    ytdMsg = '<span style="color:var(--accent);">Blayne owes Sophie <strong>' + fmt(Math.abs(ytdDiff) / 2) + '</strong> YTD</span>';
+  }
+
   var fairShare = sharedSpend / 2;
   var totalIn = blayneIn + sophieIn;
   var blayneFairPct = totalIn > 0 ? (blayneIn / totalIn * 100) : 50;
@@ -4082,6 +4490,11 @@ function renderSettlement(year, month) {
   }
 
   el.innerHTML =
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;padding:12px;background:linear-gradient(135deg,var(--surface2),var(--surface));border-radius:8px;border:1px solid var(--border2);">' +
+      '<div style="text-align:center;"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Blayne YTD</div><div style="font-size:18px;font-weight:700;color:#185FA5;margin-top:2px;">' + fmt(ytdBlayne) + '</div></div>' +
+      '<div style="text-align:center;"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Sophie YTD</div><div style="font-size:18px;font-weight:700;color:#D4537E;margin-top:2px;">' + fmt(ytdSophie) + '</div></div>' +
+      '<div style="text-align:center;"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">' + year + ' status</div><div style="font-size:13px;font-weight:500;margin-top:6px;line-height:1.3;">' + ytdMsg + '</div></div>' +
+    '</div>' +
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">' +
       '<div style="padding:12px;background:var(--surface2);border-radius:8px;text-align:center;">' +
         '<div style="font-size:12px;color:var(--text3);margin-bottom:4px;">Blayne transferred in</div>' +
@@ -4224,9 +4637,11 @@ function getPayPeriodTransactions(tab, periodStart, periodEnd) {
   });
 
   // Filter to current tab
-  if (tab !== 'combined') {
-    var ownerFilter = tab === 'shared' ? 'Shared' : (tab === 'blayne' ? 'Blayne' : 'Sophie');
-    filtered = filtered.filter(function(t) { return t.owner === ownerFilter; });
+  if (tab === 'shared') {
+    filtered = filtered.filter(function(t) { return t.owner === 'Shared'; });
+  } else if (tab === 'blayne' || tab === 'sophie') {
+    var person = tab === 'blayne' ? 'Blayne' : 'Sophie';
+    filtered = filtered.filter(function(t) { return t.owner === person || t.owner === 'Shared'; });
   }
 
   return filtered;
@@ -4357,6 +4772,7 @@ function hideMerchantRules() {
   const rulesSection = document.getElementById('merchant-rules-section');
   if (budgetSection) budgetSection.style.display = 'block';
   if (rulesSection) rulesSection.style.display = 'none';
+  if (typeof renderBudgetSettings === 'function') renderBudgetSettings();
 }
 
 // ════════════════ MOBILE NAV ════════════════
@@ -4379,6 +4795,7 @@ function mobileNav(id, btnEl) {
   else if (id === 'tracker') renderTracker();
   else if (id === 'forecast') renderForecast();
   else if (id === 'mortgage') renderMortgage();
+  else if (id === 'carfinance') renderCarFinance();
   else if (id === 'budget') renderBudgetSettings();
   else if (id === 'savings') renderSavings();
   else if (id === 'import') populateImportMonthSel();
@@ -4490,8 +4907,13 @@ function migrateCategoryNames() {
   // 3. Migrate merchant rules
   if (state.merchantRules && Array.isArray(state.merchantRules)) {
     state.merchantRules.forEach(function(r) {
+      // Legacy rules used "category" instead of "cat" — fix that
+      if (r.category && !r.cat) {
+        r.cat = r.category;
+        delete r.category;
+        changed++;
+      }
       if (r.cat && CAT_RENAMES[r.cat]) { r.cat = CAT_RENAMES[r.cat]; changed++; }
-      if (r.category && CAT_RENAMES[r.category]) { r.category = CAT_RENAMES[r.category]; changed++; }
     });
   }
 
@@ -4517,6 +4939,47 @@ function migrateCategoryNames() {
   }
 }
 
+// One-time migration: tag existing transactions with type field (Fixed/Variable)
+function migrateTransactionTypes() {
+  if (!state.transactions) return;
+  var tagged = 0;
+  Object.keys(state.transactions).forEach(function(mk) {
+    var txns = state.transactions[mk];
+    if (!Array.isArray(txns)) return;
+    txns.forEach(function(t) {
+      if (!t.type) {
+        t.type = detectIfFixed(t.desc);
+        tagged++;
+      }
+    });
+  });
+  if (tagged > 0) {
+    console.log('[Budget] Tagged ' + tagged + ' transactions with type (Fixed/Variable)');
+    saveState();
+  }
+}
+
+// One-time migration: ensure Home Joint Offset account exists for existing users
+function migrateAccounts() {
+  if (!state.accounts || !Array.isArray(state.accounts)) return;
+  var hasHomeJoint = state.accounts.some(function(a) {
+    return a && a.name && a.name.toLowerCase().indexOf('home joint') !== -1;
+  });
+  if (!hasHomeJoint) {
+    state.accounts.push({
+      name: "Home Joint — Offset",
+      owner: "Shared",
+      balance: 5250,
+      rate: 0,
+      goalLabel: "Offset",
+      goalTarget: 0,
+      isOffset: true
+    });
+    console.log('[Budget] Added Home Joint — Offset account');
+    saveState();
+  }
+}
+
 async function initApp() {
   showApp();
   addSignOutButton();
@@ -4528,6 +4991,12 @@ async function initApp() {
 
   // Category rename migration: Uber Eats → Takeaway, Medical → Health & Medical
   migrateCategoryNames();
+
+  // Tag existing transactions with type (Fixed/Variable) so Netflix etc. don't skew variable budget
+  migrateTransactionTypes();
+
+  // Ensure Home Joint Offset account exists
+  migrateAccounts();
 
   renderDashboard();
 
@@ -4549,6 +5018,7 @@ async function initApp() {
         state.config = row.config || state.config;
         if (row.settlements) state.settlements = row.settlements;
         if (row.merchant_rules) state.merchantRules = row.merchant_rules;
+        if (row.car_loans) state.carLoans = row.car_loans;
         saveLocal();
         state._lastSaved = remoteTime;
         showSyncStatus('ok');
@@ -4558,6 +5028,8 @@ async function initApp() {
           if (id === 'dashboard') renderDashboard();
           else if (id === 'tracker') renderTracker();
           else if (id === 'savings') renderSavings();
+          else if (id === 'carfinance') renderCarFinance();
+          else if (id === 'budget') renderBudgetSettings();
         }
       }
     } catch(e) {}
@@ -4617,6 +5089,7 @@ async function initApp() {
 <!-- MOBILE MORE MENU -->
 <div id="mobile-more" style="display:none;position:fixed;bottom:54px;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);z-index:149;padding:8px 0;">
   <button onclick="mobileNav('mortgage',null);toggleMobileMore()" style="width:100%;padding:14px 20px;text-align:left;border:none;background:none;font-family:var(--font);font-size:14px;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:12px;">🏠 <span>Mortgage</span></button>
+  <button onclick="mobileNav('carfinance',null);toggleMobileMore()" style="width:100%;padding:14px 20px;text-align:left;border:none;background:none;font-family:var(--font);font-size:14px;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:12px;">🚗 <span>Car Finance</span></button>
   <button onclick="mobileNav('budget',null);toggleMobileMore()" style="width:100%;padding:14px 20px;text-align:left;border:none;background:none;font-family:var(--font);font-size:14px;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:12px;">⚙️ <span>Budget Settings</span></button>
   <button onclick="mobileNav('import',null);toggleMobileMore()" style="width:100%;padding:14px 20px;text-align:left;border:none;background:none;font-family:var(--font);font-size:14px;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:12px;">📥 <span>Import</span></button>
   <button onclick="doLogout();toggleMobileMore()" style="width:100%;padding:14px 20px;text-align:left;border:none;background:none;font-family:var(--font);font-size:14px;color:var(--red);cursor:pointer;display:flex;align-items:center;gap:12px;">↩ <span>Sign out</span></button>
