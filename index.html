@@ -1894,7 +1894,22 @@ function getPersonIncome(tab, year, month) {
   const inc = getIncome(cfg.blayneAmt, cfg.blayneFreq, cfg.sophieAmt, cfg.sophieFreq);
   if (tab === 'blayne') return { total: inc.blayne, label: 'Blayne' };
   if (tab === 'sophie') return { total: inc.sophie, label: 'Sophie' };
-  if (tab === 'shared') return { total: inc.total, label: 'Shared (2UP)', blayne: inc.blayne, sophie: inc.sophie };
+  if (tab === 'shared') {
+    // Shared tab uses the BUDGETED shared pool as the "income" line, not real
+    // salaries. This makes the surplus calc meaningful: shared budget pool minus
+    // actual shared spending = how much of the joint allowance is left.
+    const cfg2 = state.config;
+    const mortFn = calcMortgagePmt(cfg2.loanBalance, cfg2.rate);
+    const mortMonthly = mortFn * 2;
+    const sharedExp = getPersonExpenses('shared', state.budgetItems, mortMonthly);
+    return {
+      total: sharedExp.total,
+      label: 'Shared (2UP)',
+      blayne: sharedExp.total / 2,
+      sophie: sharedExp.total / 2,
+      isSharedPool: true
+    };
+  }
   return { total: inc.total, label: 'Combined', blayne: inc.blayne, sophie: inc.sophie };
 }
 
@@ -2013,14 +2028,22 @@ function renderDashboard() {
   // This is the real money left (or over) after this month's actual transactions.
   const actualSurplus = incomeData.total - expenses.fixed - actualSpend;
   const varDiff = actualSpend - expenses.variable; // positive = overspent
+  const isShared = tab === 'shared';
   const metricsEl = document.getElementById('dash-metrics');
   if (metricsEl) {
-    const incomeSub = tab === 'combined'
-      ? 'Blayne ' + fmt(incomeData.blayne) + ' + Sophie ' + fmt(incomeData.sophie)
-      : tab.charAt(0).toUpperCase() + tab.slice(1) + ' only';
+    let incomeSub;
+    if (tab === 'combined') {
+      incomeSub = 'Blayne ' + fmt(incomeData.blayne) + ' + Sophie ' + fmt(incomeData.sophie);
+    } else if (isShared) {
+      incomeSub = 'budgeted joint pool · 50/50 split';
+    } else {
+      incomeSub = tab.charAt(0).toUpperCase() + tab.slice(1) + ' only';
+    }
+    const incomeLabel = isShared ? 'shared budget pool' : 'monthly income';
     const surplusLabel = varDiff > 0
       ? 'over variable budget by ' + fmt(varDiff)
-      : (actualSurplus >= 0 && incomeData.total > 0 ? (actualSurplus / incomeData.total * 100).toFixed(1) + '% savings rate' : 'over budget');
+      : (actualSurplus >= 0 && incomeData.total > 0 ? (actualSurplus / incomeData.total * 100).toFixed(1) + '% of pool left' : 'over budget');
+    const surplusTileLabel = isShared ? 'pool remaining' : 'actual surplus';
     // Build the budget sub-text. For Blayne/Sophie tabs we show the breakdown
     // (personal X + 50% of shared Y) so users understand where the totals come from.
     let budgetSub;
@@ -2032,10 +2055,10 @@ function renderDashboard() {
       budgetSub = 'fixed ' + fmt(expenses.fixed) + ' + var ' + fmt(expenses.variable);
     }
     metricsEl.innerHTML =
-      '<div class="metric"><div class="metric-label">monthly income</div><div class="metric-value">' + fmt(incomeData.total) + '</div><div class="metric-sub">' + incomeSub + '</div></div>' +
+      '<div class="metric"><div class="metric-label">' + incomeLabel + '</div><div class="metric-value">' + fmt(incomeData.total) + '</div><div class="metric-sub">' + incomeSub + '</div></div>' +
       '<div class="metric"><div class="metric-label">total budget</div><div class="metric-value">' + fmt(expenses.total) + '</div><div class="metric-sub" style="font-size:11px;line-height:1.4;">' + budgetSub + '</div></div>' +
       '<div class="metric"><div class="metric-label">variable spent</div><div class="metric-value ' + (varDiff > 0 ? 'neg' : 'pos') + '">' + fmt(actualSpend) + '</div><div class="metric-sub">of ' + fmt(expenses.variable) + ' budget' + (varDiff > 0 ? ' · over by ' + fmt(varDiff) : ' · ' + fmt(expenses.variable - actualSpend) + ' left') + '</div></div>' +
-      '<div class="metric"><div class="metric-label">actual surplus</div><div class="metric-value ' + (actualSurplus >= 0 ? 'pos' : 'neg') + '">' + fmt(actualSurplus) + '</div><div class="metric-sub">' + surplusLabel + '</div></div>';
+      '<div class="metric"><div class="metric-label">' + surplusTileLabel + '</div><div class="metric-value ' + (actualSurplus >= 0 ? 'pos' : 'neg') + '">' + fmt(actualSurplus) + '</div><div class="metric-sub">' + surplusLabel + '</div></div>';
   }
 
   // ── CATEGORY BARS ──
