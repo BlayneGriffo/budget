@@ -1892,28 +1892,7 @@ function getPersonIncome(tab, year, month) {
   const inc = getIncome(cfg.blayneAmt, cfg.blayneFreq, cfg.sophieAmt, cfg.sophieFreq);
   if (tab === 'blayne') return { total: inc.blayne, label: 'Blayne' };
   if (tab === 'sophie') return { total: inc.sophie, label: 'Sophie' };
-  if (tab === 'shared') {
-    // Shared = 2UP joint account. "Income" here = actual transfers IN from Blayne and Sophie.
-    // Falls back to settlement data captured by auto-sync. If no settlement data
-    // exists for this month, falls back to 50/50 split of budgeted shared expenses
-    // so the dashboard isn't blank for historical months.
-    let blayneIn = 0, sophieIn = 0;
-    if (year != null && month != null && state.settlements) {
-      const mk = getMonthKey(year, month);
-      const s = state.settlements[mk];
-      if (s) {
-        blayneIn = parseFloat(s.blayneIn || 0) || 0;
-        sophieIn = parseFloat(s.sophieIn || 0) || 0;
-      }
-    }
-    return {
-      total: blayneIn + sophieIn,
-      label: 'Shared (2UP)',
-      blayne: blayneIn,
-      sophie: sophieIn,
-      isTransferData: true
-    };
-  }
+  if (tab === 'shared') return { total: inc.total, label: 'Shared (2UP)', blayne: inc.blayne, sophie: inc.sophie };
   return { total: inc.total, label: 'Combined', blayne: inc.blayne, sophie: inc.sophie };
 }
 
@@ -1990,7 +1969,7 @@ function renderDashboard() {
   // Clear tab descriptions so users understand what each view means
   const tabDescriptions = {
     combined: 'Both salaries vs all household spending',
-    shared: '2UP joint account only — transfers in vs joint spending',
+    shared: '2UP joint account only — shared spending',
     blayne: "Blayne's salary vs his personal + 50% of shared",
     sophie: "Sophie's salary vs her personal + 50% of shared"
   };
@@ -1999,15 +1978,6 @@ function renderDashboard() {
   if (subtitleEl) {
     subtitleEl.innerHTML = '<div>' + tabLabel + ' — ' + MONTHS_FULL[month] + ' ' + year + '</div>' +
       '<div style="font-size:12px;color:var(--text3);font-weight:400;margin-top:2px;">' + tabDescriptions[tab] + '</div>';
-  }
-
-  // Shared tab: warn if no transfer data captured for this month
-  if (tab === 'shared' && incomeData.isTransferData && incomeData.total === 0) {
-    const alertsEl = document.getElementById('dash-alerts');
-    if (alertsEl) {
-      alertsEl.style.display = 'block';
-      alertsEl.innerHTML = '<div style="padding:10px 14px;background:#fef3cd;border-left:3px solid #f0c040;border-radius:0 8px 8px 0;font-size:13px;color:#856404;">⚠ No 2UP transfer data captured for ' + MONTHS_FULL[month] + ' ' + year + '. Income shows $0 because nobody has transferred money in yet (per the auto-sync data). Transfers get captured automatically when Up Bank sync runs.</div>';
-    }
   }
 
   // ── METRICS ──
