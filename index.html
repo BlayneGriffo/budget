@@ -344,6 +344,7 @@
     <div class="flex gap-8 flex-center" style="flex-wrap:wrap;">
       <div style="display:flex;border:1px solid var(--border2);border-radius:8px;overflow:hidden;">
         <button id="ptab-combined" onclick="setPersonTab('combined')" style="font-family:var(--font);font-size:12px;font-weight:500;padding:7px 14px;border:none;cursor:pointer;background:var(--accent);color:#fff;">Combined</button>
+        <button id="ptab-shared"   onclick="setPersonTab('shared')"   style="font-family:var(--font);font-size:12px;font-weight:500;padding:7px 14px;border:none;border-left:1px solid var(--border2);cursor:pointer;background:var(--surface);color:var(--text2);">Shared (2UP)</button>
         <button id="ptab-blayne"   onclick="setPersonTab('blayne')"   style="font-family:var(--font);font-size:12px;font-weight:500;padding:7px 14px;border:none;border-left:1px solid var(--border2);cursor:pointer;background:var(--surface);color:var(--text2);">Blayne</button>
         <button id="ptab-sophie"   onclick="setPersonTab('sophie')"   style="font-family:var(--font);font-size:12px;font-weight:500;padding:7px 14px;border:none;border-left:1px solid var(--border2);cursor:pointer;background:var(--surface);color:var(--text2);">Sophie</button>
       </div>
@@ -415,6 +416,7 @@
       <!-- Person toggle -->
       <div style="display:flex;border:1px solid var(--border2);border-radius:8px;overflow:hidden;">
         <button id="trk-tab-combined" onclick="setTrackerTab('combined')" style="font-family:var(--font);font-size:12px;font-weight:500;padding:7px 14px;border:none;cursor:pointer;background:var(--accent);color:#fff;">Combined</button>
+        <button id="trk-tab-shared"   onclick="setTrackerTab('shared')"   style="font-family:var(--font);font-size:12px;font-weight:500;padding:7px 14px;border:none;border-left:1px solid var(--border2);cursor:pointer;background:var(--surface);color:var(--text2);">Shared (2UP)</button>
         <button id="trk-tab-blayne"   onclick="setTrackerTab('blayne')"   style="font-family:var(--font);font-size:12px;font-weight:500;padding:7px 14px;border:none;border-left:1px solid var(--border2);cursor:pointer;background:var(--surface);color:var(--text2);">Blayne</button>
         <button id="trk-tab-sophie"   onclick="setTrackerTab('sophie')"   style="font-family:var(--font);font-size:12px;font-weight:500;padding:7px 14px;border:none;border-left:1px solid var(--border2);cursor:pointer;background:var(--surface);color:var(--text2);">Sophie</button>
       </div>
@@ -498,7 +500,7 @@
           <span class="slider-val" id="fc-groceries-v">$620</span>
         </div>
         <div class="slider-row">
-          <span class="slider-lbl">Dining + Uber Eats</span>
+          <span class="slider-lbl">Dining + Takeaway</span>
           <input type="range" id="fc-dining" min="50" max="600" step="10" value="277" oninput="renderForecast()">
           <span class="slider-val" id="fc-dining-v">$277</span>
         </div>
@@ -719,10 +721,11 @@
     <div style="margin-bottom:20px;">
       <label style="font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bottom:5px;">Category</label>
       <select id="rule-cat" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:8px;font-family:var(--font);font-size:14px;color:var(--text);">
-        <option>Groceries</option><option>Dining Out</option><option>Uber Eats</option>
+        <option>Groceries</option><option>Dining Out</option><option>Takeaway</option>
         <option>Alcohol / Pub</option><option>Fuel</option><option>Transport</option>
-        <option>Medical</option><option>Personal Care</option><option>Clothing</option>
-        <option>Entertainment</option><option>Personal Spending</option>
+        <option>Health & Medical</option><option>Personal Care</option><option>Clothing</option>
+        <option>Entertainment</option><option>Hobbies</option><option>Gifts & Birthdays</option>
+        <option>Insurance</option><option>Personal Spending</option>
         <option>Home Maintenance</option><option>Utilities</option>
         <option>Subscriptions</option><option>Other</option>
       </select>
@@ -986,6 +989,7 @@ const DEFAULT_BUDGET = [
   {cat:'Housing',desc:'Council rates',owner:'Shared',freq:'annually',type:'Fixed',amt:1560.53,monthly:130.04},
   {cat:'Housing',desc:'Electricity',owner:'Shared',freq:'monthly',type:'Variable',amt:100,monthly:100},
   {cat:'Housing',desc:'Home & contents insurance',owner:'Shared',freq:'monthly',type:'Fixed',amt:0,monthly:0},
+  {cat:'Housing',desc:'Travel / Contents Insurance',owner:'Shared',freq:'monthly',type:'Variable',amt:50,monthly:50},
   {cat:'Housing',desc:'Home maintenance',owner:'Shared',freq:'monthly',type:'Variable',amt:100,monthly:100},
   {cat:'Housing',desc:'Internet',owner:'Shared',freq:'monthly',type:'Fixed',amt:95,monthly:95},
   {cat:'Housing',desc:'Mobile (Blayne)',owner:'Blayne',freq:'monthly',type:'Fixed',amt:12,monthly:12},
@@ -995,16 +999,19 @@ const DEFAULT_BUDGET = [
   // Living
   {cat:'Living',desc:'Groceries',owner:'Shared',freq:'monthly',type:'Variable',amt:620,monthly:620},
   {cat:'Living',desc:'Dining Out',owner:'Shared',freq:'monthly',type:'Variable',amt:145,monthly:145},
-  {cat:'Living',desc:'Uber Eats',owner:'Shared',freq:'monthly',type:'Variable',amt:132,monthly:132},
+  {cat:'Living',desc:'Takeaway',owner:'Shared',freq:'monthly',type:'Variable',amt:132,monthly:132},
   {cat:'Living',desc:'Alcohol / Pub',owner:'Shared',freq:'monthly',type:'Variable',amt:400,monthly:400},
+  {cat:'Living',desc:'Gifts & Birthdays',owner:'Shared',freq:'monthly',type:'Variable',amt:80,monthly:80},
   {cat:'Living',desc:'Clothing (Blayne)',owner:'Blayne',freq:'monthly',type:'Variable',amt:30,monthly:30},
   {cat:'Living',desc:'Clothing (Sophie)',owner:'Sophie',freq:'monthly',type:'Variable',amt:30,monthly:30},
-  {cat:'Living',desc:'Medical (Blayne)',owner:'Blayne',freq:'monthly',type:'Variable',amt:30,monthly:30},
-  {cat:'Living',desc:'Medical (Sophie)',owner:'Sophie',freq:'monthly',type:'Variable',amt:50,monthly:50},
+  {cat:'Living',desc:'Health & Medical (Blayne)',owner:'Blayne',freq:'monthly',type:'Variable',amt:30,monthly:30},
+  {cat:'Living',desc:'Health & Medical (Sophie)',owner:'Sophie',freq:'monthly',type:'Variable',amt:50,monthly:50},
   {cat:'Living',desc:'Personal Care (Blayne)',owner:'Blayne',freq:'monthly',type:'Variable',amt:10,monthly:10},
   {cat:'Living',desc:'Personal Care (Sophie)',owner:'Sophie',freq:'monthly',type:'Variable',amt:150,monthly:150},
   {cat:'Living',desc:'Personal Spending (Blayne)',owner:'Blayne',freq:'monthly',type:'Variable',amt:160,monthly:160},
   {cat:'Living',desc:'Personal Spending (Sophie)',owner:'Sophie',freq:'monthly',type:'Variable',amt:160,monthly:160},
+  {cat:'Living',desc:'Hobbies (Blayne)',owner:'Blayne',freq:'monthly',type:'Variable',amt:50,monthly:50},
+  {cat:'Living',desc:'Hobbies (Sophie)',owner:'Sophie',freq:'monthly',type:'Variable',amt:50,monthly:50},
   {cat:'Living',desc:'Movies / Events (Blayne)',owner:'Blayne',freq:'monthly',type:'Variable',amt:84,monthly:84},
   {cat:'Living',desc:'Sports / Cricket (Blayne)',owner:'Blayne',freq:'annually',type:'Variable',amt:500,monthly:41.67},
   {cat:'Living',desc:'Private health (Blayne)',owner:'Blayne',freq:'monthly',type:'Fixed',amt:112.6,monthly:112.6},
@@ -1034,7 +1041,7 @@ const DEFAULT_BUDGET = [
   {cat:'Financial',desc:'Super contributions (Blayne)',owner:'Blayne',freq:'monthly',type:'Fixed',amt:400,monthly:400},
 ];
 
-const DEFAULT_VAR_CATS = ['Groceries','Dining Out','Uber Eats','Alcohol / Pub','Fuel','Transport','Medical','Personal Care','Clothing','Entertainment','Personal Spending','Home Maintenance','Utilities','Subscriptions','Other'];
+const DEFAULT_VAR_CATS = ['Groceries','Dining Out','Takeaway','Alcohol / Pub','Fuel','Transport','Health & Medical','Personal Care','Clothing','Entertainment','Hobbies','Gifts & Birthdays','Insurance','Personal Spending','Home Maintenance','Utilities','Subscriptions','Other'];
 
 // Dynamic: build VAR_CATS from defaults + any custom categories found in budget items or transactions
 function getVarCats() {
@@ -1091,11 +1098,14 @@ function mapBudgetItemToVarCat(desc) {
   if (d.indexOf('personal care') !== -1 || d.indexOf('haircut') !== -1 || d.indexOf('beauty') !== -1) return 'Personal Care';
   if (d.indexOf('grocer') !== -1) return 'Groceries';
   if (d.indexOf('dining') !== -1) return 'Dining Out';
-  if (d.indexOf('uber eats') !== -1 || d.indexOf('ubereats') !== -1) return 'Uber Eats';
+  if (d.indexOf('takeaway') !== -1 || d.indexOf('uber eats') !== -1 || d.indexOf('ubereats') !== -1 || d.indexOf('menulog') !== -1 || d.indexOf('doordash') !== -1 || d.indexOf('deliveroo') !== -1) return 'Takeaway';
   if (d.indexOf('alcohol') !== -1 || d.indexOf('pub') !== -1) return 'Alcohol / Pub';
   if (d.indexOf('fuel') !== -1) return 'Fuel';
   if (d.indexOf('uber') !== -1 || d.indexOf('taxi') !== -1 || d.indexOf('public transport') !== -1 || d.indexOf('toll') !== -1 || d.indexOf('parking') !== -1 || d.indexOf('car ') !== -1 || d.indexOf('rego') !== -1 || d.indexOf('registration') !== -1) return 'Transport';
-  if (d.indexOf('medical') !== -1 || d.indexOf('dental') !== -1 || d.indexOf('doctor') !== -1 || d.indexOf('pharmacy') !== -1) return 'Medical';
+  if (d.indexOf('gift') !== -1 || d.indexOf('birthday') !== -1 || d.indexOf('present') !== -1) return 'Gifts & Birthdays';
+  if (d.indexOf('insurance') !== -1) return 'Insurance';
+  if (d.indexOf('hobby') !== -1 || d.indexOf('hobbies') !== -1 || d.indexOf('craft') !== -1) return 'Hobbies';
+  if (d.indexOf('health') !== -1 || d.indexOf('medical') !== -1 || d.indexOf('dental') !== -1 || d.indexOf('doctor') !== -1 || d.indexOf('pharmacy') !== -1 || d.indexOf('chemist') !== -1 || d.indexOf('physio') !== -1) return 'Health & Medical';
   if (d.indexOf('cloth') !== -1 || d.indexOf('shoes') !== -1) return 'Clothing';
   if (d.indexOf('movie') !== -1 || d.indexOf('concert') !== -1 || d.indexOf('event') !== -1 || d.indexOf('entertainment') !== -1 || d.indexOf('sport') !== -1 || d.indexOf('cricket') !== -1) return 'Entertainment';
   if (d.indexOf('home maintenance') !== -1 || d.indexOf('sinking fund') !== -1 || d.indexOf('bunnings') !== -1) return 'Home Maintenance';
@@ -1129,10 +1139,11 @@ const DEFAULT_MERCHANT_RULES = [
   { pattern: 'sushi', cat: 'Dining Out' }, { pattern: 'thai', cat: 'Dining Out' },
   { pattern: 'chinese', cat: 'Dining Out' }, { pattern: 'indian', cat: 'Dining Out' },
   { pattern: 'starbucks', cat: 'Dining Out' }, { pattern: 'gloria jean', cat: 'Dining Out' },
-  // Uber Eats
-  { pattern: 'uber eats', cat: 'Uber Eats' }, { pattern: 'ubereats', cat: 'Uber Eats' },
-  { pattern: 'menulog', cat: 'Uber Eats' }, { pattern: 'doordash', cat: 'Uber Eats' },
-  { pattern: 'deliveroo', cat: 'Uber Eats' },
+  // Takeaway (delivery apps)
+  { pattern: 'uber eats', cat: 'Takeaway' }, { pattern: 'ubereats', cat: 'Takeaway' },
+  { pattern: 'menulog', cat: 'Takeaway' }, { pattern: 'doordash', cat: 'Takeaway' },
+  { pattern: 'deliveroo', cat: 'Takeaway' }, { pattern: 'hungry panda', cat: 'Takeaway' },
+  { pattern: 'easi delivery', cat: 'Takeaway' },
   // Alcohol / Pub
   { pattern: 'bws', cat: 'Alcohol / Pub' }, { pattern: 'dan murphy', cat: 'Alcohol / Pub' },
   { pattern: 'liquorland', cat: 'Alcohol / Pub' }, { pattern: 'bottle-o', cat: 'Alcohol / Pub' },
@@ -1151,17 +1162,33 @@ const DEFAULT_MERCHANT_RULES = [
   { pattern: 'didi', cat: 'Transport' }, { pattern: 'taxifare', cat: 'Transport' },
   { pattern: 'opal', cat: 'Transport' }, { pattern: 'transdev', cat: 'Transport' },
   { pattern: 'nsw trains', cat: 'Transport' }, { pattern: 'bus fare', cat: 'Transport' },
-  // Medical
-  { pattern: 'chemist', cat: 'Medical' }, { pattern: 'pharmacy', cat: 'Medical' },
-  { pattern: 'priceline', cat: 'Medical' }, { pattern: 'amcal', cat: 'Medical' },
-  { pattern: 'medical', cat: 'Medical' }, { pattern: 'dental', cat: 'Medical' },
-  { pattern: 'doctor', cat: 'Medical' }, { pattern: 'physio', cat: 'Medical' },
-  { pattern: 'optometrist', cat: 'Medical' }, { pattern: 'pathology', cat: 'Medical' },
+  // Health & Medical
+  { pattern: 'chemist', cat: 'Health & Medical' }, { pattern: 'pharmacy', cat: 'Health & Medical' },
+  { pattern: 'amcal', cat: 'Health & Medical' },
+  { pattern: 'medical', cat: 'Health & Medical' }, { pattern: 'dental', cat: 'Health & Medical' },
+  { pattern: 'doctor', cat: 'Health & Medical' }, { pattern: 'physio', cat: 'Health & Medical' },
+  { pattern: 'optometrist', cat: 'Health & Medical' }, { pattern: 'pathology', cat: 'Health & Medical' },
+  { pattern: 'medicare', cat: 'Health & Medical' }, { pattern: 'bupa', cat: 'Health & Medical' },
+  { pattern: 'hcf ', cat: 'Health & Medical' }, { pattern: 'nib health', cat: 'Health & Medical' },
   // Personal Care
   { pattern: 'haircut', cat: 'Personal Care' }, { pattern: 'hairdress', cat: 'Personal Care' },
   { pattern: 'barber', cat: 'Personal Care' }, { pattern: 'salon', cat: 'Personal Care' },
   { pattern: 'beauty', cat: 'Personal Care' }, { pattern: 'nail', cat: 'Personal Care' },
-  { pattern: 'priceline pharmacy', cat: 'Personal Care' },
+  { pattern: 'priceline', cat: 'Personal Care' },
+  // Gifts & Birthdays
+  { pattern: 'gift', cat: 'Gifts & Birthdays' }, { pattern: 'florist', cat: 'Gifts & Birthdays' },
+  { pattern: 'flowers', cat: 'Gifts & Birthdays' }, { pattern: 'hallmark', cat: 'Gifts & Birthdays' },
+  { pattern: 'card factory', cat: 'Gifts & Birthdays' },
+  // Insurance
+  { pattern: 'nrma', cat: 'Insurance' }, { pattern: 'aami', cat: 'Insurance' },
+  { pattern: 'allianz', cat: 'Insurance' }, { pattern: 'budget direct', cat: 'Insurance' },
+  { pattern: 'youi', cat: 'Insurance' }, { pattern: 'qbe', cat: 'Insurance' },
+  { pattern: 'racv', cat: 'Insurance' }, { pattern: 'suncorp', cat: 'Insurance' },
+  { pattern: 'travel insurance', cat: 'Insurance' }, { pattern: 'cover-more', cat: 'Insurance' },
+  // Hobbies
+  { pattern: 'spotlight', cat: 'Hobbies' }, { pattern: 'lincraft', cat: 'Hobbies' },
+  { pattern: 'eckersley', cat: 'Hobbies' }, { pattern: 'hobby', cat: 'Hobbies' },
+  { pattern: 'craft', cat: 'Hobbies' }, { pattern: 'jb hi-fi', cat: 'Hobbies' },
   // Clothing
   { pattern: 'zara', cat: 'Clothing' }, { pattern: 'h&m', cat: 'Clothing' },
   { pattern: 'uniqlo', cat: 'Clothing' }, { pattern: 'cotton on', cat: 'Clothing' },
@@ -1301,7 +1328,7 @@ function showApp() {
 }
 
 function doLogout() {
-  clearSession();
+  sbSignOut();
   const loginEl = document.getElementById('login-screen');
   const appEl = document.getElementById('app-shell');
   if (loginEl) loginEl.style.display = 'flex';
@@ -1336,6 +1363,36 @@ function saveLocal() {
   localStorage.setItem('config', JSON.stringify(state.config));
   localStorage.setItem('merchant_rules', JSON.stringify(state.merchantRules || []));
   localStorage.setItem('settlements', JSON.stringify(state.settlements || {}));
+  // Belt-and-braces auto-save: schedule a debounced Supabase sync
+  // in case any code path mutates state without calling saveState() directly
+  scheduleAutoSave();
+}
+
+// Debounced auto-save: fires 800ms after last mutation, syncs to Supabase
+var _autoSaveTimer = null;
+function scheduleAutoSave() {
+  if (_autoSaveTimer) clearTimeout(_autoSaveTimer);
+  _autoSaveTimer = setTimeout(function() {
+    _autoSaveTimer = null;
+    // Skip if a recent saveState() already pushed to Supabase
+    if (state._lastSaved && (Date.now() - state._lastSaved) < 1000) return;
+    // Push to Supabase silently
+    sbUpsert('household_data', {
+      id: 1,
+      budget_items: state.budgetItems,
+      transactions: state.transactions,
+      direct_actuals: state.directActuals,
+      accounts: state.accounts,
+      config: state.config,
+      settlements: state.settlements || {},
+      merchant_rules: state.merchantRules || [],
+      updated_at: new Date().toISOString()
+    }).then(function() {
+      state._lastSaved = Date.now();
+    }).catch(function(e) {
+      console.warn('[AutoSave] Supabase sync failed:', e.message);
+    });
+  }, 800);
 }
 
 async function saveState() {
@@ -1349,6 +1406,8 @@ async function saveState() {
       direct_actuals: state.directActuals,
       accounts: state.accounts,
       config: state.config,
+      settlements: state.settlements || {},
+      merchant_rules: state.merchantRules || [],
       updated_at: new Date().toISOString()
     });
   } catch(e) {
@@ -1366,6 +1425,8 @@ async function loadFromSupabase() {
       state.directActuals = row.direct_actuals || {};
       state.accounts = row.accounts || DEFAULT_ACCOUNTS;
       state.config = row.config || state.config;
+      if (row.settlements) state.settlements = row.settlements;
+      if (row.merchant_rules) state.merchantRules = row.merchant_rules;
       state._lastSaved = new Date(row.updated_at).getTime();
       saveLocal();
       state.synced = true;
@@ -1497,7 +1558,7 @@ let dashTrendChart = null;
 
 function setPersonTab(tab) {
   dashPersonTab = tab;
-  ['combined','blayne','sophie'].forEach(t => {
+  ['combined','shared','blayne','sophie'].forEach(t => {
     const el = document.getElementById('ptab-' + t);
     if (!el) return;
     el.style.background = t === tab ? 'var(--accent)' : 'var(--surface)';
@@ -1511,21 +1572,20 @@ function getPersonIncome(tab) {
   const inc = getIncome(cfg.blayneAmt, cfg.blayneFreq, cfg.sophieAmt, cfg.sophieFreq);
   if (tab === 'blayne') return { total: inc.blayne, label: 'Blayne' };
   if (tab === 'sophie') return { total: inc.sophie, label: 'Sophie' };
+  if (tab === 'shared') return { total: inc.total, label: 'Shared (2UP)', blayne: inc.blayne, sophie: inc.sophie };
   return { total: inc.total, label: 'Combined', blayne: inc.blayne, sophie: inc.sophie };
 }
 
 function getPersonExpenses(tab, budgetItems, mortMonthly) {
-  // Returns fixed + variable totals filtered by person
+  // 4-tab model: combined=all 100%, shared=Shared only, blayne=Blayne only, sophie=Sophie only
   let fixed = 0, variable = 0;
   budgetItems.forEach(item => {
     const mo = item.desc === 'Mortgage repayment' ? mortMonthly : (item.monthly || 0);
-    const isShared = item.owner === 'Shared';
-    const isBlayne = item.owner === 'Blayne';
-    const isSophie = item.owner === 'Sophie';
     let share = 0;
     if (tab === 'combined') share = mo;
-    else if (tab === 'blayne') share = isBlayne ? mo : (isShared ? mo * 0.5 : 0);
-    else if (tab === 'sophie') share = isSophie ? mo : (isShared ? mo * 0.5 : 0);
+    else if (tab === 'shared') share = item.owner === 'Shared' ? mo : 0;
+    else if (tab === 'blayne') share = item.owner === 'Blayne' ? mo : 0;
+    else if (tab === 'sophie') share = item.owner === 'Sophie' ? mo : 0;
     if (item.type === 'Fixed' || item.desc === 'Mortgage repayment') fixed += share;
     else variable += share;
   });
@@ -1535,8 +1595,9 @@ function getPersonExpenses(tab, budgetItems, mortMonthly) {
 function getPersonActuals(tab, txns) {
   return txns.reduce((s, t) => {
     if (tab === 'combined') return s + t.amount;
-    if (tab === 'blayne' && (t.owner === 'Blayne' || t.owner === 'Shared')) return s + (t.owner === 'Shared' ? t.amount * 0.5 : t.amount);
-    if (tab === 'sophie' && (t.owner === 'Sophie' || t.owner === 'Shared')) return s + (t.owner === 'Shared' ? t.amount * 0.5 : t.amount);
+    if (tab === 'shared' && t.owner === 'Shared') return s + t.amount;
+    if (tab === 'blayne' && t.owner === 'Blayne') return s + t.amount;
+    if (tab === 'sophie' && t.owner === 'Sophie') return s + t.amount;
     return s;
   }, 0);
 }
@@ -1593,13 +1654,11 @@ function renderDashboard() {
   CATS.forEach(c => catTotals[c] = 0);
   state.budgetItems.forEach(item => {
     const mo = item.desc === 'Mortgage repayment' ? mortMonthly : (item.monthly || 0);
-    const isShared = item.owner === 'Shared';
-    const isBlayne = item.owner === 'Blayne';
-    const isSophie = item.owner === 'Sophie';
     let share = 0;
     if (tab === 'combined') share = mo;
-    else if (tab === 'blayne') share = isBlayne ? mo : (isShared ? mo * 0.5 : 0);
-    else if (tab === 'sophie') share = isSophie ? mo : (isShared ? mo * 0.5 : 0);
+    else if (tab === 'shared') share = item.owner === 'Shared' ? mo : 0;
+    else if (tab === 'blayne') share = item.owner === 'Blayne' ? mo : 0;
+    else if (tab === 'sophie') share = item.owner === 'Sophie' ? mo : 0;
     if (catTotals[item.cat] !== undefined) catTotals[item.cat] += share;
   });
   const maxCat = Math.max(...Object.values(catTotals), 1);
@@ -1682,33 +1741,29 @@ function renderCategoryAlerts(year, month, tab, expenses) {
   if (!alertsEl) return;
 
   var txns = getMonthTxns(year, month);
-  // Build per-category actuals for the selected person tab
+  // Build per-category actuals for the selected tab
   var catActuals = {};
   VAR_CATS.forEach(function(c) { catActuals[c] = 0; });
   txns.forEach(function(t) {
-    var share = 1;
     if (tab !== 'combined') {
-      var person = tab === 'blayne' ? 'Blayne' : 'Sophie';
-      if (t.owner !== person && t.owner !== 'Shared') return;
-      if (t.owner === 'Shared') share = 0.5;
+      var ownerFilter = tab === 'shared' ? 'Shared' : (tab === 'blayne' ? 'Blayne' : 'Sophie');
+      if (t.owner !== ownerFilter) return;
     }
-    if (catActuals[t.cat] !== undefined) catActuals[t.cat] += t.amount * share;
-    else catActuals['Other'] += t.amount * share;
+    if (catActuals[t.cat] !== undefined) catActuals[t.cat] += t.amount;
+    else catActuals['Other'] += t.amount;
   });
 
-  // Get variable budget per category for this person view
+  // Get variable budget per category for this tab view
   var varBudget = {};
   if (tab === 'combined') {
     VAR_CATS.forEach(function(c) { varBudget[c] = VAR_BUDGET_MAP[c] || 0; });
   } else {
     VAR_CATS.forEach(function(c) { varBudget[c] = 0; });
+    var ownerFilter = tab === 'shared' ? 'Shared' : (tab === 'blayne' ? 'Blayne' : 'Sophie');
     state.budgetItems.filter(function(i) { return i.type === 'Variable'; }).forEach(function(item) {
+      if (item.owner !== ownerFilter) return;
       var catKey = item.varCat || mapBudgetItemToVarCat(item.desc);
-      var person = tab === 'blayne' ? 'Blayne' : 'Sophie';
-      var share = 0;
-      if (item.owner === person) share = item.monthly || 0;
-      else if (item.owner === 'Shared') share = (item.monthly || 0) * 0.5;
-      if (varBudget[catKey] !== undefined) varBudget[catKey] += share;
+      if (varBudget[catKey] !== undefined) varBudget[catKey] += (item.monthly || 0);
     });
   }
 
@@ -1766,14 +1821,12 @@ function renderRollingAverages(year, month, tab) {
     var catTotals = {};
     VAR_CATS.forEach(function(c) { catTotals[c] = 0; });
     txns.forEach(function(t) {
-      var share = 1;
       if (tab !== 'combined') {
-        var person = tab === 'blayne' ? 'Blayne' : 'Sophie';
-        if (t.owner !== person && t.owner !== 'Shared') return;
-        if (t.owner === 'Shared') share = 0.5;
+        var ownerFilter = tab === 'shared' ? 'Shared' : (tab === 'blayne' ? 'Blayne' : 'Sophie');
+        if (t.owner !== ownerFilter) return;
       }
-      if (catTotals[t.cat] !== undefined) catTotals[t.cat] += t.amount * share;
-      else catTotals['Other'] += t.amount * share;
+      if (catTotals[t.cat] !== undefined) catTotals[t.cat] += t.amount;
+      else catTotals['Other'] += t.amount;
     });
 
     monthsData.push({ year: y, month: m, cats: catTotals });
@@ -1962,7 +2015,7 @@ let trackerTab = 'combined';
 
 function setTrackerTab(tab) {
   trackerTab = tab;
-  ['combined','blayne','sophie'].forEach(t => {
+  ['combined','shared','blayne','sophie'].forEach(t => {
     const el = document.getElementById('trk-tab-' + t);
     if (!el) return;
     el.style.background = t === tab ? 'var(--accent)' : 'var(--surface)';
@@ -1972,34 +2025,38 @@ function setTrackerTab(tab) {
 }
 
 // Get share of an expense for the current tab
+// 4-tab model:
+//   combined → everything at 100%
+//   shared   → only Shared items at 100%
+//   blayne   → only Blayne's items (NO shared halving)
+//   sophie   → only Sophie's items (NO shared halving)
 function getItemShare(item, mortMonthly) {
   const mo = item.desc === 'Mortgage repayment' ? mortMonthly : (item.monthly || 0);
   if (trackerTab === 'combined') return mo;
+  if (trackerTab === 'shared') return item.owner === 'Shared' ? mo : 0;
   const person = trackerTab === 'blayne' ? 'Blayne' : 'Sophie';
   if (item.owner === person) return mo;
-  if (item.owner === 'Shared') return mo * 0.5;
   return 0;
 }
 
-// Get budget map filtered to person (for variable categories)
+// Get budget map filtered to current tab (for variable categories)
 function getPersonVarBudget() {
   if (trackerTab === 'combined') return VAR_BUDGET_MAP;
-  const person = trackerTab === 'blayne' ? 'Blayne' : 'Sophie';
   const cats = getVarCats();
   const result = {};
   cats.forEach(c => result[c] = 0);
+
+  let ownerFilter;
+  if (trackerTab === 'shared') ownerFilter = 'Shared';
+  else if (trackerTab === 'blayne') ownerFilter = 'Blayne';
+  else ownerFilter = 'Sophie';
+
   state.budgetItems.forEach(item => {
     if (item.type !== 'Variable') return;
+    if (item.owner !== ownerFilter) return;
     var catKey = item.varCat || mapBudgetItemToVarCat(item.desc);
-    let share = 0;
-    if (item.owner === person) share = item.monthly || 0;
-    else if (item.owner === 'Shared') share = (item.monthly || 0) * 0.5;
-    if (result[catKey] !== undefined) result[catKey] += share;
+    if (result[catKey] !== undefined) result[catKey] += (item.monthly || 0);
   });
-  const hasAny = Object.values(result).some(v => v > 0);
-  if (!hasAny) {
-    cats.forEach(c => result[c] = (VAR_BUDGET_MAP[c] || 0) * 0.5);
-  }
   return result;
 }
 
@@ -2016,15 +2073,15 @@ function renderTracker() {
   const allTxns = getMonthTxns(year, month);
   console.log('[Tracker] Rendering for', year, MONTHS_FULL[month], '- txns found:', allTxns.length, '- key:', getMonthKey(year, month));
   const tab = trackerTab;
-  const person = tab === 'blayne' ? 'Blayne' : tab === 'sophie' ? 'Sophie' : null;
 
   // ── Income for this view ──
+  // Shared tab uses combined income (since shared expenses come from joint pot)
   let income;
-  if (tab === 'combined') income = incAll.total;
+  if (tab === 'combined' || tab === 'shared') income = incAll.total;
   else if (tab === 'blayne') income = incAll.blayne;
   else income = incAll.sophie;
 
-  // ── Fixed expenses for this view (shared = 50/50) ──
+  // ── Fixed expenses for this view ──
   let totalFixed = 0;
   const fixedItems = state.budgetItems.filter(i => i.type === 'Fixed');
   fixedItems.forEach(item => { totalFixed += getItemShare(item, mortMonthly); });
@@ -2035,20 +2092,30 @@ function renderTracker() {
     if (item.type === 'Variable') totalVar += getItemShare(item, mortMonthly);
   });
 
-  // ── Transactions filtered to person ──
-  const txns = tab === 'combined'
-    ? allTxns
-    : allTxns.filter(t => t.owner === person || t.owner === 'Shared');
+  // ── Transactions filtered to current tab ──
+  // combined → all txns
+  // shared   → only owner='Shared' (2UP joint account)
+  // blayne   → only owner='Blayne' (his personal accounts)
+  // sophie   → only owner='Sophie' (her personal accounts)
+  let txns;
+  if (tab === 'combined') {
+    txns = allTxns;
+  } else if (tab === 'shared') {
+    txns = allTxns.filter(t => t.owner === 'Shared');
+  } else {
+    const ownerFilter = tab === 'blayne' ? 'Blayne' : 'Sophie';
+    txns = allTxns.filter(t => t.owner === ownerFilter);
+  }
 
   // ── Actuals from direct overrides + transactions ──
+  // No more halving — each txn counts at 100% in its respective tab
   const monthKey = getMonthKey(year, month);
   const directActuals = (state.directActuals && state.directActuals[monthKey]) || {};
   const txnCatTotals = {};
   VAR_CATS.forEach(c => txnCatTotals[c] = 0);
   txns.forEach(t => {
-    const share = (t.owner === 'Shared' && tab !== 'combined') ? 0.5 : 1;
-    if (txnCatTotals[t.cat] !== undefined) txnCatTotals[t.cat] += t.amount * share;
-    else txnCatTotals['Other'] += t.amount * share;
+    if (txnCatTotals[t.cat] !== undefined) txnCatTotals[t.cat] += t.amount;
+    else txnCatTotals['Other'] += t.amount;
   });
   // Transactions always take priority. Direct overrides are only used when
   // there are ZERO transactions for that category AND a manual override exists.
@@ -2056,10 +2123,8 @@ function renderTracker() {
   VAR_CATS.forEach(c => {
     var txnTotal = txnCatTotals[c] || 0;
     if (txnTotal > 0) {
-      // Real transactions exist — use them (ignore any stale direct override)
       catActuals[c] = txnTotal;
     } else if (tab === 'combined' && directActuals[c] !== undefined && directActuals[c] > 0) {
-      // No transactions, but there's a manual direct entry — use it
       catActuals[c] = directActuals[c];
     } else {
       catActuals[c] = 0;
@@ -2075,15 +2140,26 @@ function renderTracker() {
       ctxBar.style.display = 'none';
     } else {
       ctxBar.style.display = 'block';
-      ctxBar.style.background = tab === 'blayne' ? 'var(--blue-bg)' : 'var(--amber-bg)';
-      ctxBar.style.color = tab === 'blayne' ? 'var(--blue)' : 'var(--amber)';
-      ctxBar.style.borderLeft = '3px solid ' + (tab === 'blayne' ? 'var(--blue)' : 'var(--amber)');
+      let barColor, barName, barDesc;
+      if (tab === 'shared') {
+        barColor = 'green';
+        barName = 'Shared (2UP)';
+        barDesc = 'Shows only spending from your 2UP joint account against shared budget items. Personal account spending is excluded.';
+      } else if (tab === 'blayne') {
+        barColor = 'blue';
+        barName = 'Blayne personal';
+        barDesc = "Shows only Blayne's personal account spending. Shared 2UP expenses appear in the Shared tab, not here.";
+      } else {
+        barColor = 'amber';
+        barName = 'Sophie personal';
+        barDesc = "Shows only Sophie's personal account spending. Shared 2UP expenses appear in the Shared tab, not here.";
+      }
+      ctxBar.style.background = 'var(--' + barColor + '-bg)';
+      ctxBar.style.color = 'var(--' + barColor + ')';
+      ctxBar.style.borderLeft = '3px solid var(--' + barColor + ')';
       ctxBar.style.borderRadius = '0 8px 8px 0';
       ctxBar.style.padding = '10px 14px';
-      const pName = tab === 'blayne' ? 'Blayne' : 'Sophie';
-      ctxBar.innerHTML = '<strong>' + pName + ' personal view</strong> \u2014 shows ' + pName + '\u2019s own expenses plus 50% of all shared expenses. ' +
-        'Income: <strong>' + fmt(income) + '/mo</strong>. ' +
-        'Direct-entry actuals are combined-household only; use the transactions list for personal tracking.';
+      ctxBar.innerHTML = '<strong>' + barName + ' view</strong> \u2014 ' + barDesc + ' Income: <strong>' + fmt(income) + '/mo</strong>.';
     }
   }
 
@@ -2091,14 +2167,24 @@ function renderTracker() {
   renderPayPeriodBar(tab);
 
   // ── Month label ──
-  document.getElementById('tracker-month-label').textContent = MONTHS_FULL[month] + ' ' + year + (tab !== 'combined' ? ' — ' + (tab === 'blayne' ? 'Blayne' : 'Sophie') : '');
+  const tabLabels = { combined: '', shared: ' — Shared (2UP)', blayne: ' — Blayne', sophie: ' — Sophie' };
+  document.getElementById('tracker-month-label').textContent = MONTHS_FULL[month] + ' ' + year + (tabLabels[tab] || '');
 
   // ── Metrics ──
   const metricsEl = document.getElementById('tracker-metrics');
   if (metricsEl) {
+    const incomeLabel = tab === 'combined' ? 'combined income'
+                      : tab === 'shared' ? 'household income'
+                      : tab === 'blayne' ? 'Blayne income' : 'Sophie income';
+    const incomeSub = (tab === 'combined' || tab === 'shared')
+                      ? 'Blayne ' + fmt(incAll.blayne) + ' + Sophie ' + fmt(incAll.sophie)
+                      : 'personal income only';
+    const fixedSub = tab === 'shared' ? 'shared fixed only'
+                    : tab === 'combined' ? 'all fixed'
+                    : 'personal fixed only';
     metricsEl.innerHTML =
-      '<div class="metric"><div class="metric-label">' + (tab === 'combined' ? 'combined income' : (tab === 'blayne' ? 'Blayne income' : 'Sophie income')) + '</div><div class="metric-value">' + fmt(income) + '</div><div class="metric-sub">' + (tab === 'combined' ? 'Blayne ' + fmt(incAll.blayne) + ' + Sophie ' + fmt(incAll.sophie) : 'personal income only') + '</div></div>' +
-      '<div class="metric"><div class="metric-label">fixed expenses</div><div class="metric-value">' + fmt(totalFixed) + '</div><div class="metric-sub">' + (tab !== 'combined' ? 'own + 50% shared' : 'all fixed') + '</div></div>' +
+      '<div class="metric"><div class="metric-label">' + incomeLabel + '</div><div class="metric-value">' + fmt(income) + '</div><div class="metric-sub">' + incomeSub + '</div></div>' +
+      '<div class="metric"><div class="metric-label">fixed expenses</div><div class="metric-value">' + fmt(totalFixed) + '</div><div class="metric-sub">' + fixedSub + '</div></div>' +
       '<div class="metric"><div class="metric-label">variable budget</div><div class="metric-value">' + fmt(totalVar) + '</div></div>' +
       '<div class="metric"><div class="metric-label">variable actual</div><div class="metric-value ' + (totalActual > totalVar ? 'neg' : 'pos') + '" id="tracker-actual-metric">' + fmt(totalActual) + '</div><div class="metric-sub">of ' + fmt(totalVar) + ' budgeted</div></div>' +
       '<div class="metric"><div class="metric-label">surplus (projected)</div><div class="metric-value ' + (surplus >= 0 ? 'pos' : 'neg') + '" id="tracker-surplus-metric">' + fmt(surplus) + '</div><div class="metric-sub">' + (income > 0 ? (surplus/income*100).toFixed(1) + '% savings rate' : '') + '</div></div>';
@@ -2106,11 +2192,12 @@ function renderTracker() {
 
   // ── Variable breakdown table ──
   const varBudgetMap = tab === 'combined' ? VAR_BUDGET_MAP : (() => {
-    // Build per-person variable budget from budget items
+    // Build tab-filtered variable budget from budget items
     const map = {};
     getVarCats().forEach(c => map[c] = 0);
     state.budgetItems.filter(i => i.type === 'Variable').forEach(item => {
       const share = getItemShare(item, 0);
+      if (share === 0) return;
       const bestCat = item.varCat || mapBudgetItemToVarCat(item.desc);
       if (map[bestCat] !== undefined) map[bestCat] += share;
       else map['Other'] += share;
@@ -2144,14 +2231,13 @@ function renderTracker() {
   }).join('') +
   '<tr class="total-row" id="var-total-row"><td>Total variable</td><td class="num">' + fmt(totalVarBudget) + '</td><td class="num" id="var-total-actual" style="font-family:var(--mono)">' + fmt(totalActual) + '</td><td class="num" id="var-total-rem" style="color:var(--' + (totalVarBudget - totalActual >= 0 ? 'green' : 'red') + ')">' + fmt(Math.abs(totalVarBudget - totalActual)) + '</td><td></td></tr>';
 
-  // ── Fixed table (filtered to person) ──
+  // ── Fixed table (filtered to current tab) ──
   const fixedTbody = document.querySelector('#tracker-fixed-table tbody');
   const visibleFixed = fixedItems.filter(item => getItemShare(item, mortMonthly) > 0);
   visibleFixed.sort((a, b) => getItemShare(b, mortMonthly) - getItemShare(a, mortMonthly));
   fixedTbody.innerHTML = visibleFixed.map(item => {
     const mo = getItemShare(item, mortMonthly);
-    const ownerLabel = tab !== 'combined' && item.owner === 'Shared' ? 'Shared (50%)' : item.owner;
-    return '<tr><td>' + item.desc + '</td><td><span class="badge badge-gray">' + ownerLabel + '</span></td><td class="num">' + fmt(mo) + '</td></tr>';
+    return '<tr><td>' + item.desc + '</td><td><span class="badge badge-gray">' + item.owner + '</span></td><td class="num">' + fmt(mo) + '</td></tr>';
   }).join('') + '<tr class="total-row"><td>Total fixed</td><td></td><td class="num">' + fmt(totalFixed) + '</td></tr>';
 
   // ── Transactions list (filtered + sorted) ──
@@ -2161,12 +2247,11 @@ function renderTracker() {
   // Re-index against full allTxns for delete to work correctly
   txnTbody.innerHTML = sorted.map(t => {
     const realIdx = allTxns.indexOf(t);
-    const sharedNote = t.owner === 'Shared' && tab !== 'combined' ? ' <span style="font-size:10px;color:var(--text3);">(50%)</span>' : '';
     return '<tr>' +
       '<td>' + t.date + '</td>' +
       '<td>' + t.desc + '</td>' +
       '<td><span class="badge badge-gray">' + t.cat + '</span></td>' +
-      '<td>' + t.owner + sharedNote + '</td>' +
+      '<td>' + t.owner + '</td>' +
       '<td class="num">' + fmtDec(t.amount) + '</td>' +
       '<td><button class="btn btn-sm btn-danger" onclick="deleteTransaction(\'' + year + '-' + month + '\',' + realIdx + ')">×</button></td>' +
     '</tr>';
@@ -2198,7 +2283,7 @@ function renderForecast() {
   const baseFixed = getTotalFixed(state.budgetItems, rate);
   const baseVar = getTotalVariable(state.budgetItems);
   // Override specific variable items
-  const adjVar = baseVar - (VAR_BUDGET_MAP['Groceries'] + VAR_BUDGET_MAP['Dining Out'] + VAR_BUDGET_MAP['Uber Eats'] + VAR_BUDGET_MAP['Alcohol / Pub'])
+  const adjVar = baseVar - (VAR_BUDGET_MAP['Groceries'] + VAR_BUDGET_MAP['Dining Out'] + VAR_BUDGET_MAP['Takeaway'] + VAR_BUDGET_MAP['Alcohol / Pub'])
                + groceries + dining + alc;
   const totalExp = baseFixed + adjVar;
   const surplus = income.total - totalExp;
@@ -2892,12 +2977,10 @@ function parseCsvImport() {
 }
 
 
-const ALL_CATS = ['Groceries','Dining Out','Uber Eats','Alcohol / Pub','Fuel','Transport','Medical','Personal Care','Clothing','Entertainment','Personal Spending','Home Maintenance','Utilities','Subscriptions','Other'];
+const ALL_CATS = DEFAULT_VAR_CATS;
 
 function renderImportResults(results, monthLabel) {
-  const CATS = ['Groceries','Dining Out','Uber Eats','Alcohol / Pub','Fuel','Transport',
-    'Medical','Personal Care','Clothing','Entertainment','Personal Spending',
-    'Home Maintenance','Utilities','Subscriptions','Other'];
+  const CATS = DEFAULT_VAR_CATS;
 
   const resultsEl = document.getElementById('imp-results');
   const tbody = document.getElementById('imp-review-body');
@@ -3720,13 +3803,63 @@ async function runAutoSync() {
       }
 
       // Fetch 2UP joint transactions
+      var jointTransferIns = []; // Capture transfer-ins for settlement tracking
       if (jointAccounts.length > 0) {
         progressText.textContent = 'Syncing 2UP joint account...';
+        // Build a set of Blayne's personal account IDs for transfer-source matching
+        var blaynePersonalIds = {};
+        personalAccounts.forEach(function(a) { blaynePersonalIds[a.id] = true; });
+
         for (var ja = 0; ja < jointAccounts.length; ja++) {
           var jPath = '/accounts/' + jointAccounts[ja].id + '/transactions?filter[status]=SETTLED&filter[since]=' + encodeURIComponent(since) + '&filter[until]=' + encodeURIComponent(until) + '&page[size]=100';
           var jaTxns = await upGetAll(jPath, blayneToken);
+
+          // Capture transfer-ins (positive amounts coming from a personal account)
+          jaTxns.forEach(function(t) {
+            var amt = parseFloat(t.attributes.amount.value);
+            if (amt <= 0) return; // Only credits (money in)
+            var transferRel = t.relationships && t.relationships.transferAccount && t.relationships.transferAccount.data;
+            if (!transferRel) {
+              // Not a transfer — might be a description-tagged deposit
+              var desc = (t.attributes.description || '').toLowerCase();
+              var date = t.attributes.createdAt.slice(0, 10);
+              if (desc.indexOf('blayne') !== -1) {
+                jointTransferIns.push({ date: date, who: 'blayne', amount: amt, id: t.id });
+              } else if (desc.indexOf('sophie') !== -1) {
+                jointTransferIns.push({ date: date, who: 'sophie', amount: amt, id: t.id });
+              }
+              return;
+            }
+            // It IS a transfer — figure out who from
+            var srcId = transferRel.id;
+            var date = t.attributes.createdAt.slice(0, 10);
+            if (blaynePersonalIds[srcId]) {
+              jointTransferIns.push({ date: date, who: 'blayne', amount: amt, id: t.id });
+            } else {
+              // Not Blayne's — assume Sophie (her personal accounts use a different token)
+              jointTransferIns.push({ date: date, who: 'sophie', amount: amt, id: t.id });
+            }
+          });
+
           var jaFiltered = filterUpTransactions(jaTxns);
           allNew = allNew.concat(parseUpTransactions(jaFiltered, 'Shared'));
+        }
+
+        // Aggregate transfer-ins by month and persist to state.settlements
+        if (jointTransferIns.length > 0) {
+          if (!state.settlements) state.settlements = {};
+          // Track which transfer IDs we've already counted (to avoid double-count on re-sync)
+          var seenIds = state._settlementTxIds || {};
+          jointTransferIns.forEach(function(ti) {
+            if (seenIds[ti.id]) return;
+            seenIds[ti.id] = true;
+            var parts = ti.date.split('-').map(Number);
+            var smk = getMonthKey(parts[0], parts[1] - 1);
+            if (!state.settlements[smk]) state.settlements[smk] = { blayne: 0, sophie: 0, _auto: true };
+            state.settlements[smk][ti.who] = (state.settlements[smk][ti.who] || 0) + ti.amount;
+            state.settlements[smk]._auto = true;
+          });
+          state._settlementTxIds = seenIds;
         }
       }
     }
@@ -3821,9 +3954,7 @@ function saveAutoSyncTransactions(txns) {
 }
 
 function renderAutoSyncReview() {
-  var CATS = ['Groceries','Dining Out','Uber Eats','Alcohol / Pub','Fuel','Transport',
-    'Medical','Personal Care','Clothing','Entertainment','Personal Spending',
-    'Home Maintenance','Utilities','Subscriptions','Other'];
+  var CATS = DEFAULT_VAR_CATS;
 
   var html = '';
   autoSyncPending.forEach(function(t, i) {
@@ -3852,9 +3983,7 @@ function renderAutoSyncReview() {
 }
 
 function confirmAutoSync() {
-  var CATS = ['Groceries','Dining Out','Uber Eats','Alcohol / Pub','Fuel','Transport',
-    'Medical','Personal Care','Clothing','Entertainment','Personal Spending',
-    'Home Maintenance','Utilities','Subscriptions','Other'];
+  var CATS = DEFAULT_VAR_CATS;
 
   autoSyncPending.forEach(function(t, i) {
     var sel = document.getElementById('autosync-cat-' + i);
@@ -3979,7 +4108,9 @@ function renderSettlement(year, month) {
       '<div style="font-size:13px;">' + settlementMsg + '</div>' +
       '<div style="font-size:12px;color:var(--text3);">Total shared spend: ' + fmt(sharedSpend) + ' · Fair share each: ' + fmt(fairShare) + '</div>' +
     '</div>' +
-    '<div style="margin-top:12px;font-size:11px;color:var(--text3);line-height:1.5;">Settlement is based on actual transfers into the 2UP joint account. Use the Up Bank sync to pull transfer data, or manually enter amounts below.</div>' +
+    (data._auto
+      ? '<div style="margin-top:12px;font-size:11px;color:var(--green);line-height:1.5;">✓ Auto-detected from Up Bank — transfers into the 2UP joint account from your personal accounts. Override below if needed.</div>'
+      : '<div style="margin-top:12px;font-size:11px;color:var(--text3);line-height:1.5;">No auto-detected transfers yet. Run an Up Bank sync to populate, or enter manually below.</div>') +
     '<div style="display:flex;gap:8px;margin-top:10px;align-items:flex-end;">' +
       '<div style="flex:1;"><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px;">Blayne transferred ($)</label>' +
         '<input type="number" id="settle-blayne" value="' + (blayneIn || '') + '" placeholder="0" step="0.01" min="0" style="width:100%;padding:6px 8px;font-size:13px;" oninput="updateSettlement(' + year + ',' + month + ')"></div>' +
@@ -3993,7 +4124,7 @@ function updateSettlement(year, month) {
   if (!state.settlements) state.settlements = {};
   var bVal = parseFloat(document.getElementById('settle-blayne').value) || 0;
   var sVal = parseFloat(document.getElementById('settle-sophie').value) || 0;
-  state.settlements[mk] = { blayne: bVal, sophie: sVal };
+  state.settlements[mk] = { blayne: bVal, sophie: sVal, _auto: false };
   saveState();
   // Re-render to update the bar and message
   renderSettlement(year, month);
@@ -4045,9 +4176,9 @@ function getPayPeriodInfo(tab) {
       start: periodStart, end: periodEnd, dayInPeriod: dayInPeriod,
       startStr: formatDateShort(periodStart), endStr: formatDateShort(periodEnd) };
   } else {
-    // Blayne or combined — use weekly (Blayne's pay cycle)
+    // Blayne, Shared, or combined — use weekly (Blayne's pay cycle as baseline)
     var freq = 'Weekly';
-    var amt = tab === 'combined' ? ((cfg.blayneAmt || 1592) + (cfg.sophieAmt || 2671.72) / 2) : (cfg.blayneAmt || 1592);
+    var amt = (tab === 'combined' || tab === 'shared') ? ((cfg.blayneAmt || 1592) + (cfg.sophieAmt || 2671.72) / 2) : (cfg.blayneAmt || 1592);
     var periodDays = 7;
     // Week starts on Monday
     var dayOfWeek = now.getDay(); // 0=Sun
@@ -4056,7 +4187,8 @@ function getPayPeriodInfo(tab) {
     var periodEnd = new Date(periodStart.getTime() + 6 * 86400000);
     var dayInPeriod = Math.floor((now - periodStart) / 86400000) + 1;
 
-    result = { person: tab === 'combined' ? 'Household' : 'Blayne', freq: freq, amt: amt,
+    var personLabel = tab === 'combined' ? 'Household' : tab === 'shared' ? 'Shared (2UP)' : 'Blayne';
+    result = { person: personLabel, freq: freq, amt: amt,
       periodDays: periodDays, start: periodStart, end: periodEnd, dayInPeriod: dayInPeriod,
       startStr: formatDateShort(periodStart), endStr: formatDateShort(periodEnd) };
   }
@@ -4091,10 +4223,10 @@ function getPayPeriodTransactions(tab, periodStart, periodEnd) {
     return t.date >= startStr && t.date <= endStr;
   });
 
-  // Filter to person
+  // Filter to current tab
   if (tab !== 'combined') {
-    var person = tab === 'blayne' ? 'Blayne' : 'Sophie';
-    filtered = filtered.filter(function(t) { return t.owner === person || t.owner === 'Shared'; });
+    var ownerFilter = tab === 'shared' ? 'Shared' : (tab === 'blayne' ? 'Blayne' : 'Sophie');
+    filtered = filtered.filter(function(t) { return t.owner === ownerFilter; });
   }
 
   return filtered;
@@ -4114,8 +4246,7 @@ function renderPayPeriodBar(tab) {
   var pp = getPayPeriodInfo(tab);
   var txns = getPayPeriodTransactions(tab, pp.start, pp.end);
   var spent = txns.reduce(function(s, t) {
-    var share = (t.owner === 'Shared' && tab !== 'combined') ? 0.5 : 1;
-    return s + (t.amount || 0) * share;
+    return s + (t.amount || 0);
   }, 0);
 
   // Calculate daily budget from variable expenses
@@ -4159,9 +4290,7 @@ function renderMerchantRules() {
     return;
   }
   if (empty) empty.style.display = 'none';
-  const CATS = ['Groceries','Dining Out','Uber Eats','Alcohol / Pub','Fuel','Transport',
-    'Medical','Personal Care','Clothing','Entertainment','Personal Spending',
-    'Home Maintenance','Utilities','Subscriptions','Other'];
+  const CATS = DEFAULT_VAR_CATS;
 
   list.innerHTML = rules.map(function(rule, i) {
     const catOpts = CATS.map(function(cat) {
@@ -4195,7 +4324,7 @@ function deleteMerchantRule(idx) {
 function showAddRuleModal() {
   document.getElementById('rule-pattern').value = '';
   document.getElementById('rule-cat').value = 'Other';
-  openModal('add-rule-modal');
+  document.getElementById('add-rule-modal').classList.add('open');
 }
 
 function saveNewRule() {
@@ -4320,6 +4449,74 @@ function migrateTransactionKeys() {
   }
 }
 
+// One-time migration: rename old categories to new names
+// Uber Eats → Takeaway, Medical → Health & Medical
+function migrateCategoryNames() {
+  var CAT_RENAMES = {
+    'Uber Eats': 'Takeaway',
+    'Medical': 'Health & Medical'
+  };
+  var changed = 0;
+
+  // 1. Migrate transactions
+  if (state.transactions) {
+    Object.keys(state.transactions).forEach(function(mk) {
+      var txns = state.transactions[mk];
+      if (!Array.isArray(txns)) return;
+      txns.forEach(function(t) {
+        if (t.cat && CAT_RENAMES[t.cat]) {
+          t.cat = CAT_RENAMES[t.cat];
+          changed++;
+        }
+      });
+    });
+  }
+
+  // 2. Migrate budget items (desc + varCat field)
+  if (state.budgetItems) {
+    state.budgetItems.forEach(function(item) {
+      if (item.varCat && CAT_RENAMES[item.varCat]) {
+        item.varCat = CAT_RENAMES[item.varCat];
+        changed++;
+      }
+      // Rename "Uber Eats" budget item to "Takeaway"
+      if (item.desc === 'Uber Eats') { item.desc = 'Takeaway'; changed++; }
+      // Rename "Medical (Blayne)" / "Medical (Sophie)" → "Health & Medical (...)"
+      if (item.desc === 'Medical (Blayne)') { item.desc = 'Health & Medical (Blayne)'; changed++; }
+      if (item.desc === 'Medical (Sophie)') { item.desc = 'Health & Medical (Sophie)'; changed++; }
+    });
+  }
+
+  // 3. Migrate merchant rules
+  if (state.merchantRules && Array.isArray(state.merchantRules)) {
+    state.merchantRules.forEach(function(r) {
+      if (r.cat && CAT_RENAMES[r.cat]) { r.cat = CAT_RENAMES[r.cat]; changed++; }
+      if (r.category && CAT_RENAMES[r.category]) { r.category = CAT_RENAMES[r.category]; changed++; }
+    });
+  }
+
+  // 4. Migrate directActuals (per-month override map)
+  if (state.directActuals) {
+    Object.keys(state.directActuals).forEach(function(mk) {
+      var monthMap = state.directActuals[mk];
+      if (!monthMap || typeof monthMap !== 'object') return;
+      Object.keys(CAT_RENAMES).forEach(function(oldCat) {
+        if (monthMap[oldCat] !== undefined) {
+          var newCat = CAT_RENAMES[oldCat];
+          monthMap[newCat] = (monthMap[newCat] || 0) + monthMap[oldCat];
+          delete monthMap[oldCat];
+          changed++;
+        }
+      });
+    });
+  }
+
+  if (changed > 0) {
+    console.log('[Budget] Migrated ' + changed + ' category references to new names');
+    saveState();
+  }
+}
+
 async function initApp() {
   showApp();
   addSignOutButton();
@@ -4328,6 +4525,9 @@ async function initApp() {
   // One-time migration: fix transactions saved under wrong month keys
   // (e.g. March transactions stored under "2026-04" instead of "2026-03")
   migrateTransactionKeys();
+
+  // Category rename migration: Uber Eats → Takeaway, Medical → Health & Medical
+  migrateCategoryNames();
 
   renderDashboard();
 
@@ -4347,6 +4547,8 @@ async function initApp() {
         state.directActuals = row.direct_actuals || {};
         state.accounts = row.accounts || DEFAULT_ACCOUNTS;
         state.config = row.config || state.config;
+        if (row.settlements) state.settlements = row.settlements;
+        if (row.merchant_rules) state.merchantRules = row.merchant_rules;
         saveLocal();
         state._lastSaved = remoteTime;
         showSyncStatus('ok');
