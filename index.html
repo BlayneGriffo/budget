@@ -2028,6 +2028,10 @@ function renderDashboard() {
   // This is the real money left (or over) after this month's actual transactions.
   const actualSurplus = incomeData.total - expenses.fixed - actualSpend;
   const varDiff = actualSpend - expenses.variable; // positive = overspent
+  // Pace check — current month only
+  const isCurrentMonth = (year === now2.getFullYear() && month === now2.getMonth());
+  const expectedSpendDash = expenses.variable * pctThrough;
+  const paceRatioDash = expectedSpendDash > 0 ? actualSpend / expectedSpendDash : 0;
   const isShared = tab === 'shared';
   const metricsEl = document.getElementById('dash-metrics');
   if (metricsEl) {
@@ -2040,10 +2044,27 @@ function renderDashboard() {
       incomeSub = tab.charAt(0).toUpperCase() + tab.slice(1) + ' only';
     }
     const incomeLabel = isShared ? 'shared budget pool' : 'monthly income';
-    const surplusLabel = varDiff > 0
-      ? 'over variable budget by ' + fmt(varDiff)
-      : (actualSurplus >= 0 && incomeData.total > 0 ? (actualSurplus / incomeData.total * 100).toFixed(1) + '% of pool left' : 'over budget');
+    let surplusLabel;
+    if (varDiff > 0) {
+      surplusLabel = 'over variable budget by ' + fmt(varDiff);
+    } else if (isCurrentMonth && paceRatioDash > 1.1) {
+      surplusLabel = '⚠ tracking over pace — could end month over';
+    } else if (actualSurplus >= 0 && incomeData.total > 0) {
+      surplusLabel = (actualSurplus / incomeData.total * 100).toFixed(1) + (isShared ? '% of pool left' : '% savings rate');
+    } else {
+      surplusLabel = 'over budget';
+    }
     const surplusTileLabel = isShared ? 'pool remaining' : 'actual surplus';
+    // Variable spent sub-text — pace-aware
+    let varSpentSub;
+    if (varDiff > 0) {
+      varSpentSub = 'of ' + fmt(expenses.variable) + ' budget · over by ' + fmt(varDiff);
+    } else if (isCurrentMonth) {
+      const paceIcon = paceRatioDash > 1.3 ? '🔴' : paceRatioDash > 1.1 ? '🟡' : '✅';
+      varSpentSub = paceIcon + ' ' + Math.round(paceRatioDash*100) + '% of pace · day ' + dayOfMonth + '/' + daysInMonth;
+    } else {
+      varSpentSub = 'of ' + fmt(expenses.variable) + ' budget · ' + fmt(expenses.variable - actualSpend) + ' left';
+    }
     // Build the budget sub-text. For Blayne/Sophie tabs we show the breakdown
     // (personal X + 50% of shared Y) so users understand where the totals come from.
     let budgetSub;
@@ -2057,8 +2078,8 @@ function renderDashboard() {
     metricsEl.innerHTML =
       '<div class="metric"><div class="metric-label">' + incomeLabel + '</div><div class="metric-value">' + fmt(incomeData.total) + '</div><div class="metric-sub">' + incomeSub + '</div></div>' +
       '<div class="metric"><div class="metric-label">total budget</div><div class="metric-value">' + fmt(expenses.total) + '</div><div class="metric-sub" style="font-size:11px;line-height:1.4;">' + budgetSub + '</div></div>' +
-      '<div class="metric"><div class="metric-label">variable spent</div><div class="metric-value ' + (varDiff > 0 ? 'neg' : 'pos') + '">' + fmt(actualSpend) + '</div><div class="metric-sub">of ' + fmt(expenses.variable) + ' budget' + (varDiff > 0 ? ' · over by ' + fmt(varDiff) : ' · ' + fmt(expenses.variable - actualSpend) + ' left') + '</div></div>' +
-      '<div class="metric"><div class="metric-label">' + surplusTileLabel + '</div><div class="metric-value ' + (actualSurplus >= 0 ? 'pos' : 'neg') + '">' + fmt(actualSurplus) + '</div><div class="metric-sub">' + surplusLabel + '</div></div>';
+      '<div class="metric"><div class="metric-label">variable spent</div><div class="metric-value ' + (varDiff > 0 || (isCurrentMonth && paceRatioDash > 1.1) ? 'neg' : 'pos') + '">' + fmt(actualSpend) + '</div><div class="metric-sub">' + varSpentSub + '</div></div>' +
+      '<div class="metric"><div class="metric-label">' + surplusTileLabel + '</div><div class="metric-value ' + (actualSurplus >= 0 && varDiff <= 0 ? 'pos' : 'neg') + '">' + fmt(actualSurplus) + '</div><div class="metric-sub">' + surplusLabel + '</div></div>';
   }
 
   // ── CATEGORY BARS ──
@@ -2564,11 +2585,29 @@ function renderTracker() {
   const tab = trackerTab;
 
   // ── Income for this view ──
-  // Shared tab uses combined income (since shared expenses come from joint pot)
-  let income;
-  if (tab === 'combined' || tab === 'shared') income = incAll.total;
-  else if (tab === 'blayne') income = incAll.blayne;
-  else income = incAll.sophie;
+  // Combined/Blayne/Sophie use real salaries from config.
+  // Shared uses the BUDGETED shared pool (not real salaries) so the surplus calc
+  // is meaningful: shared pool minus actual shared spending = pool remaining.
+  let income, incomeLabel, incomeSub;
+  if (tab === 'combined') {
+    income = incAll.total;
+    incomeLabel = 'combined income';
+    incomeSub = 'Blayne ' + fmt(incAll.blayne) + ' + Sophie ' + fmt(incAll.sophie);
+  } else if (tab === 'blayne') {
+    income = incAll.blayne;
+    incomeLabel = 'Blayne income';
+    incomeSub = 'Blayne only';
+  } else if (tab === 'sophie') {
+    income = incAll.sophie;
+    incomeLabel = 'Sophie income';
+    incomeSub = 'Sophie only';
+  } else { // shared
+    // Use the shared budget pool as the "income" for this tab. We compute it
+    // below from getPersonExpenses, then patch the income value.
+    income = 0; // placeholder, set after totalFixed/totalVar computed
+    incomeLabel = 'shared budget pool';
+    incomeSub = 'budgeted joint pool · 50/50 split';
+  }
 
   // ── Fixed expenses for this view ──
   let totalFixed = 0;
@@ -2580,6 +2619,11 @@ function renderTracker() {
   state.budgetItems.forEach(item => {
     if (item.type === 'Variable') totalVar += getItemShare(item, mortMonthly);
   });
+
+  // For Shared tab, "income" is the total shared budget pool (fixed + variable)
+  if (tab === 'shared') {
+    income = totalFixed + totalVar;
+  }
 
   // ── Transactions filtered to current tab ──
   // combined → all txns
@@ -2623,7 +2667,6 @@ function renderTracker() {
     }
   });
   const totalActual = VAR_CATS.reduce((s, c) => s + (catActuals[c] || 0), 0);
-  const surplus = income - totalFixed - totalActual;
 
   // ── Context bar ──
   const ctxBar = document.getElementById('tracker-context-bar');
@@ -2632,26 +2675,29 @@ function renderTracker() {
       ctxBar.style.display = 'none';
     } else {
       ctxBar.style.display = 'block';
-      let barColor, barName, barDesc;
+      let barColor, barName, barDesc, barIncomeLabel;
       if (tab === 'shared') {
         barColor = 'green';
         barName = 'Shared (2UP)';
         barDesc = 'Shows only spending from your 2UP joint account against shared budget items at 100%.';
+        barIncomeLabel = 'Pool';
       } else if (tab === 'blayne') {
         barColor = 'blue';
         barName = 'Blayne fair share';
         barDesc = "Shows Blayne's personal spending plus 50% of all shared (2UP) expenses — his fair share of the household.";
+        barIncomeLabel = 'Income';
       } else {
         barColor = 'amber';
         barName = 'Sophie fair share';
         barDesc = "Shows Sophie's personal spending plus 50% of all shared (2UP) expenses — her fair share of the household.";
+        barIncomeLabel = 'Income';
       }
       ctxBar.style.background = 'var(--' + barColor + '-bg)';
       ctxBar.style.color = 'var(--' + barColor + ')';
       ctxBar.style.borderLeft = '3px solid var(--' + barColor + ')';
       ctxBar.style.borderRadius = '0 8px 8px 0';
       ctxBar.style.padding = '10px 14px';
-      ctxBar.innerHTML = '<strong>' + barName + ' view</strong> \u2014 ' + barDesc + ' Income: <strong>' + fmt(income) + '/mo</strong>.';
+      ctxBar.innerHTML = '<strong>' + barName + ' view</strong> \u2014 ' + barDesc + ' ' + barIncomeLabel + ': <strong>' + fmt(income) + '/mo</strong>.';
     }
   }
 
@@ -2665,21 +2711,73 @@ function renderTracker() {
   // ── Metrics ──
   const metricsEl = document.getElementById('tracker-metrics');
   if (metricsEl) {
-    const incomeLabel = tab === 'combined' ? 'combined income'
-                      : tab === 'shared' ? 'household income'
-                      : tab === 'blayne' ? 'Blayne income' : 'Sophie income';
-    const incomeSub = (tab === 'combined' || tab === 'shared')
-                      ? 'Blayne ' + fmt(incAll.blayne) + ' + Sophie ' + fmt(incAll.sophie)
-                      : 'personal income only';
-    const fixedSub = tab === 'shared' ? 'shared fixed only'
-                    : tab === 'combined' ? 'all fixed'
-                    : 'personal fixed only';
+    // Get the breakdown for personal tabs (own vs ½ shared)
+    const expBreakdown = getPersonExpenses(tab, state.budgetItems, mortMonthly);
+
+    // Pace calculation: how far through the month are we?
+    // Use today() if viewing the current month, otherwise assume the month is complete.
+    const now2 = today();
+    const isCurrentMonth = (year === now2.getFullYear() && month === now2.getMonth());
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const dayOfMonth = isCurrentMonth ? now2.getDate() : daysInMonth;
+    const pctThrough = dayOfMonth / daysInMonth;
+    const expectedSpend = totalVar * pctThrough;
+    const paceRatio = expectedSpend > 0 ? totalActual / expectedSpend : 0;
+
+    // Fixed sub-text — show breakdown for personal tabs
+    let fixedSub;
+    if (tab === 'blayne' || tab === 'sophie') {
+      fixedSub = 'own ' + fmt(expBreakdown.personalFixed) + ' + ½ shared ' + fmt(expBreakdown.sharedHalfFixed);
+    } else if (tab === 'shared') {
+      fixedSub = 'shared items only';
+    } else {
+      fixedSub = 'all fixed expenses';
+    }
+
+    // Variable budget sub-text
+    let varBudgetSub;
+    if (tab === 'blayne' || tab === 'sophie') {
+      varBudgetSub = 'own ' + fmt(expBreakdown.personalVar) + ' + ½ shared ' + fmt(expBreakdown.sharedHalfVar);
+    } else {
+      varBudgetSub = '';
+    }
+
+    // Variable actual sub-text — pace-aware
+    const varDiff = totalActual - totalVar;
+    let actualSub;
+    if (varDiff > 0) {
+      actualSub = 'OVER by ' + fmt(varDiff);
+    } else if (isCurrentMonth) {
+      // Show pace context if current month
+      if (paceRatio > 1.3) actualSub = '🔴 ' + Math.round(paceRatio*100) + '% of pace · day ' + dayOfMonth + '/' + daysInMonth;
+      else if (paceRatio > 1.1) actualSub = '🟡 ' + Math.round(paceRatio*100) + '% of pace · day ' + dayOfMonth + '/' + daysInMonth;
+      else actualSub = '✅ ' + Math.round(paceRatio*100) + '% of pace · day ' + dayOfMonth + '/' + daysInMonth;
+    } else {
+      actualSub = 'of ' + fmt(totalVar) + ' budgeted';
+    }
+
+    // Surplus tile — actual income − fixed − actual variable
+    // (NOT income − total budget; that ignores real spending)
+    const actualSurplus = income - totalFixed - totalActual;
+    const surplusTileLabel = tab === 'shared' ? 'pool remaining' : 'actual surplus';
+    let surplusSub;
+    if (varDiff > 0) {
+      surplusSub = 'over variable budget by ' + fmt(varDiff);
+    } else if (isCurrentMonth && paceRatio > 1.1) {
+      surplusSub = '⚠ tracking over pace — could end month over budget';
+    } else if (income > 0) {
+      const pct = (actualSurplus / income * 100).toFixed(1);
+      surplusSub = (tab === 'shared' ? pct + '% of pool left' : pct + '% savings rate');
+    } else {
+      surplusSub = '';
+    }
+
     metricsEl.innerHTML =
       '<div class="metric"><div class="metric-label">' + incomeLabel + '</div><div class="metric-value">' + fmt(income) + '</div><div class="metric-sub">' + incomeSub + '</div></div>' +
-      '<div class="metric"><div class="metric-label">fixed expenses</div><div class="metric-value">' + fmt(totalFixed) + '</div><div class="metric-sub">' + fixedSub + '</div></div>' +
-      '<div class="metric"><div class="metric-label">variable budget</div><div class="metric-value">' + fmt(totalVar) + '</div></div>' +
-      '<div class="metric"><div class="metric-label">variable actual</div><div class="metric-value ' + (totalActual > totalVar ? 'neg' : 'pos') + '" id="tracker-actual-metric">' + fmt(totalActual) + '</div><div class="metric-sub">of ' + fmt(totalVar) + ' budgeted</div></div>' +
-      '<div class="metric"><div class="metric-label">surplus (projected)</div><div class="metric-value ' + (surplus >= 0 ? 'pos' : 'neg') + '" id="tracker-surplus-metric">' + fmt(surplus) + '</div><div class="metric-sub">' + (income > 0 ? (surplus/income*100).toFixed(1) + '% savings rate' : '') + '</div></div>';
+      '<div class="metric"><div class="metric-label">fixed expenses</div><div class="metric-value">' + fmt(totalFixed) + '</div><div class="metric-sub" style="font-size:11px;line-height:1.4;">' + fixedSub + '</div></div>' +
+      '<div class="metric"><div class="metric-label">variable budget</div><div class="metric-value">' + fmt(totalVar) + '</div>' + (varBudgetSub ? '<div class="metric-sub" style="font-size:11px;line-height:1.4;">' + varBudgetSub + '</div>' : '') + '</div>' +
+      '<div class="metric"><div class="metric-label">variable actual</div><div class="metric-value ' + (varDiff > 0 ? 'neg' : (isCurrentMonth && paceRatio > 1.1 ? 'neg' : 'pos')) + '" id="tracker-actual-metric">' + fmt(totalActual) + '</div><div class="metric-sub">' + actualSub + '</div></div>' +
+      '<div class="metric"><div class="metric-label">' + surplusTileLabel + '</div><div class="metric-value ' + (actualSurplus >= 0 && varDiff <= 0 ? 'pos' : 'neg') + '" id="tracker-surplus-metric">' + fmt(actualSurplus) + '</div><div class="metric-sub">' + surplusSub + '</div></div>';
   }
 
   // ── Variable breakdown table ──
