@@ -741,90 +741,64 @@
 
   <div style="font-size:20px;font-weight:600;margin-bottom:6px;">Import Transactions</div>
   <div style="font-size:13px;color:var(--text3);margin-bottom:12px;">Upload a bank statement screenshot or CSV export. AI will read the transactions, categorise them against your budget, and let you review before saving.</div>
-  <div style="padding:8px 12px;background:var(--green-bg);border-radius:8px;font-size:12px;color:var(--green);margin-bottom:24px;">🔒 Files are processed in-memory only and discarded immediately after analysis. No screenshots or bank files are ever stored on our servers.</div>
+  <div style="padding:8px 12px;background:var(--green-bg);border-radius:8px;font-size:12px;color:var(--green);margin-bottom:24px;">🔒 Files are processed in-memory only and discarded immediately. No data is ever stored on our servers.</div>
 
   <div class="grid-2 mb-16">
 
-    <!-- Input card with Upload / Paste tabs -->
+    <!-- CSV Import card (free - no AI) -->
     <div class="card">
-      <div class="card-title">1 — add your statement</div>
-
-      <!-- Input mode toggle -->
-      <div style="display:flex;border:1px solid var(--border2);border-radius:8px;overflow:hidden;margin-bottom:16px;">
-        <button id="imp-tab-upload" onclick="setImportTab('upload')" style="flex:1;font-family:var(--font);font-size:13px;font-weight:500;padding:9px 14px;border:none;cursor:pointer;background:var(--accent);color:#fff;transition:all 0.15s;">📎 Upload file</button>
-        <button id="imp-tab-paste" onclick="setImportTab('paste')" style="flex:1;font-family:var(--font);font-size:13px;font-weight:500;padding:9px 14px;border:none;border-left:1px solid var(--border2);cursor:pointer;background:var(--surface);color:var(--text2);transition:all 0.15s;">📋 Paste text</button>
+      <div class="card-title">1 — upload a CSV file</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.6;">
+        Export your statement from St.George internet banking (or any bank) as a CSV, then drop it here. Transactions are auto-categorised using the same merchant rules as the Up Bank sync — completely free, no AI required.
       </div>
 
-      <!-- Upload panel -->
-      <div id="imp-panel-upload">
-        <div id="imp-drop-zone" onclick="document.getElementById('imp-file-input').click()" style="border:2px dashed var(--border2);border-radius:10px;padding:28px 20px;text-align:center;cursor:pointer;transition:border 0.2s;margin-bottom:16px;">
-          <div style="font-size:28px;margin-bottom:8px;">📄</div>
-          <div style="font-size:14px;font-weight:500;color:var(--text2);">Drop file here or click to browse</div>
-          <div style="font-size:12px;color:var(--text3);margin-top:4px;">Screenshots (PNG, JPG), PDFs, or CSV/text exports</div>
-        </div>
-        <input type="file" id="imp-file-input" accept="image/*,.pdf,.csv,.txt,.xlsx" style="display:none;" onchange="handleImportFile(this)">
-        <div id="imp-file-preview" style="display:none;padding:10px 12px;background:var(--surface2);border-radius:8px;font-size:13px;color:var(--text2);margin-bottom:12px;">
-          <span id="imp-file-name"></span>
-        </div>
+      <div id="imp-drop-zone" onclick="document.getElementById('imp-file-input').click()" style="border:2px dashed var(--border2);border-radius:10px;padding:28px 20px;text-align:center;cursor:pointer;transition:border 0.2s;margin-bottom:16px;">
+        <div style="font-size:28px;margin-bottom:8px;">📄</div>
+        <div style="font-size:14px;font-weight:500;color:var(--text2);">Drop CSV file here or click to browse</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:4px;">Accepts .csv files from St.George, CommBank, NAB, ANZ, etc.</div>
+      </div>
+      <input type="file" id="imp-file-input" accept=".csv,.txt" style="display:none;" onchange="handleCsvFile(this)">
+      <div id="imp-file-preview" style="display:none;padding:10px 12px;background:var(--surface2);border-radius:8px;font-size:13px;color:var(--text2);margin-bottom:12px;">
+        <span id="imp-file-name"></span>
       </div>
 
-      <!-- Paste panel -->
-      <div id="imp-panel-paste" style="display:none;">
-        <div style="font-size:12px;color:var(--text2);margin-bottom:8px;line-height:1.6;">
-          Copy your transactions from your banking app, internet banking, or anywhere else and paste them below. Any format works — the AI will figure it out.
-        </div>
-        <textarea id="imp-paste-text"
-          placeholder="Paste your bank transactions here...
-
-For example:
-15 Mar 2026  WOOLWORTHS 1234          -$84.50
-15 Mar 2026  SHELL CALTEX FUEL        -$95.00
-16 Mar 2026  UBER EATS                -$32.80
-16 Mar 2026  BWS LIQUOR               -$45.00
-
-Or copy straight from your banking app — any format is fine."
-          oninput="handlePasteInput(this)"
-          style="width:100%;min-height:180px;padding:12px;border:1px solid var(--border2);border-radius:8px;font-family:var(--mono);font-size:13px;color:var(--text);background:var(--surface);resize:vertical;line-height:1.6;"></textarea>
-        <div id="imp-paste-preview" style="display:none;margin-top:8px;padding:8px 12px;background:var(--surface2);border-radius:6px;font-size:12px;color:var(--green);">✓ <span id="imp-paste-chars">0</span> characters ready to analyse</div>
+      <div class="form-row" style="margin-bottom:12px;">
+        <label>Which account / person?</label>
+        <select id="imp-owner" style="width:100%;">
+          <option value="Blayne">Blayne's account</option>
+          <option value="Sophie">Sophie's account</option>
+          <option value="Shared">Shared / joint account</option>
+        </select>
       </div>
-
-      <!-- Shared fields -->
-      <div style="margin-top:14px;">
-        <div class="form-row" style="margin-bottom:12px;">
-          <label>Which account / person?</label>
-          <select id="imp-owner" style="width:100%;">
-            <option value="Blayne">Blayne's account</option>
-            <option value="Sophie">Sophie's account</option>
-            <option value="Shared">Shared / joint account</option>
-          </select>
-        </div>
-        <div class="form-row" style="margin-bottom:14px;">
-          <label>Statement month</label>
-          <select id="imp-month-sel" style="width:100%;"></select>
-        </div>
-        <button id="imp-analyse-btn" class="btn btn-primary" onclick="analyseImport()" style="width:100%;display:none;">
-          Analyse with AI →
-        </button>
+      <div class="form-row" style="margin-bottom:14px;">
+        <label>Statement month</label>
+        <select id="imp-month-sel" style="width:100%;"></select>
       </div>
+      <button id="imp-parse-btn" class="btn btn-primary" onclick="parseCsvImport()" style="width:100%;display:none;">
+        Parse CSV and review →
+      </button>
     </div>
 
-    <!-- Tips card -->
+    <!-- How it works card -->
     <div class="card">
-      <div class="card-title">tips for best results</div>
+      <div class="card-title">how to export from St.George</div>
       <div style="font-size:13px;color:var(--text2);line-height:1.7;">
-        <div style="margin-bottom:10px;"><strong style="color:var(--text);">Upload</strong> — screenshot your bank app transaction list, or export a CSV from internet banking and upload it directly.</div>
-        <div style="margin-bottom:10px;"><strong style="color:var(--text);">Paste</strong> — copy transactions from your banking app or internet banking and paste them in. Any format works: the AI reads date, merchant and amount.</div>
-        <div style="margin-bottom:10px;"><strong style="color:var(--text);">What gets imported</strong> — AI picks out each debit, maps it to your budget categories, and assigns the owner you selected.</div>
-        <div><strong style="color:var(--text);">Review before saving</strong> — every transaction shows with its suggested category. Change anything before confirming.</div>
+        <div style="margin-bottom:8px;"><strong style="color:var(--text);">1.</strong> Log into St.George internet banking</div>
+        <div style="margin-bottom:8px;"><strong style="color:var(--text);">2.</strong> Go to your account → Transaction history</div>
+        <div style="margin-bottom:8px;"><strong style="color:var(--text);">3.</strong> Select the date range (or the month you want)</div>
+        <div style="margin-bottom:8px;"><strong style="color:var(--text);">4.</strong> Click <strong>Export</strong> → choose <strong>CSV</strong></div>
+        <div style="margin-bottom:8px;"><strong style="color:var(--text);">5.</strong> Upload the file here</div>
+        <div style="margin-top:12px;padding:10px 12px;background:var(--green-bg);border-radius:8px;font-size:12px;color:var(--green);">✓ Free — uses rule-based categorisation, no API costs</div>
+        <div style="margin-top:6px;padding:10px 12px;background:var(--surface2);border-radius:8px;font-size:12px;color:var(--text3);">💡 For Up Bank, use the section below instead — it's automatic</div>
       </div>
     </div>
   </div>
 
-  <!-- AI status -->
+  <!-- Processing status -->
   <div id="imp-status" style="display:none;" class="card mb-16">
     <div style="display:flex;align-items:center;gap:12px;">
       <div id="imp-spinner" style="width:20px;height:20px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0;"></div>
-      <div id="imp-status-text" style="font-size:13px;color:var(--text2);">Analysing your statement…</div>
+      <div id="imp-status-text" style="font-size:13px;color:var(--text2);">Parsing your CSV…</div>
     </div>
   </div>
 
@@ -2640,8 +2614,7 @@ function updateCatActual(input) {
 
 // ════════════════ IMPORT ════════════════
 
-let importFileData = null;   // { type: 'image'|'text', data: base64|string, mediaType }
-let importResults  = [];     // parsed transactions from AI
+let importResults  = [];     // parsed transactions from CSV
 
 function populateImportMonthSel() {
   const now2 = today();
@@ -2660,210 +2633,264 @@ function populateImportMonthSel() {
   });
 }
 
-function setImportTab(tab) {
-  const uploadPanel = document.getElementById('imp-panel-upload');
-  const pastePanel  = document.getElementById('imp-panel-paste');
-  const uploadBtn   = document.getElementById('imp-tab-upload');
-  const pasteBtn    = document.getElementById('imp-tab-paste');
-  if (!uploadPanel) return;
+// ═══════════════════════ CSV IMPORT (no AI, free) ═══════════════════════
 
-  if (tab === 'upload') {
-    uploadPanel.style.display = 'block';
-    pastePanel.style.display  = 'none';
-    uploadBtn.style.background = 'var(--accent)'; uploadBtn.style.color = '#fff';
-    pasteBtn.style.background  = 'var(--surface)'; pasteBtn.style.color = 'var(--text2)';
-    // Clear paste data if switching away
-    importFileData = null;
-    const analyseBtn = document.getElementById('imp-analyse-btn');
-    const fp = document.getElementById('imp-file-preview');
-    if (fp && fp.style.display !== 'none') {
-      // Keep file if already loaded
-    } else {
-      if (analyseBtn) analyseBtn.style.display = 'none';
-    }
-  } else {
-    uploadPanel.style.display = 'none';
-    pastePanel.style.display  = 'block';
-    pasteBtn.style.background  = 'var(--accent)'; pasteBtn.style.color = '#fff';
-    uploadBtn.style.background = 'var(--surface)'; uploadBtn.style.color = 'var(--text2)';
-    // Re-check if there's paste content already
-    const ta = document.getElementById('imp-paste-text');
-    if (ta && ta.value.trim().length > 10) {
-      importFileData = { type: 'text', data: ta.value };
-      const analyseBtn = document.getElementById('imp-analyse-btn');
-      if (analyseBtn) analyseBtn.style.display = 'block';
-    }
-  }
-  document.getElementById('imp-results').style.display = 'none';
-}
+let csvFileData = null; // holds parsed CSV rows
 
-function handlePasteInput(textarea) {
-  const text = textarea.value.trim();
-  const preview = document.getElementById('imp-paste-preview');
-  const chars   = document.getElementById('imp-paste-chars');
-  const analyseBtn = document.getElementById('imp-analyse-btn');
-
-  if (text.length > 10) {
-    importFileData = { type: 'text', data: text };
-    if (preview) { preview.style.display = 'block'; }
-    if (chars)   { chars.textContent = text.length.toLocaleString(); }
-    if (analyseBtn) { analyseBtn.style.display = 'block'; }
-  } else {
-    importFileData = null;
-    if (preview) { preview.style.display = 'none'; }
-    if (analyseBtn) { analyseBtn.style.display = 'none'; }
-  }
-}
-
-function handleImportFile(input) {
+function handleCsvFile(input) {
   const file = input.files[0];
   if (!file) return;
+
   document.getElementById('imp-file-name').textContent = '📎 ' + file.name + ' (' + (file.size / 1024).toFixed(0) + ' KB)';
   document.getElementById('imp-file-preview').style.display = 'block';
-  document.getElementById('imp-analyse-btn').style.display = 'block';
+  document.getElementById('imp-parse-btn').style.display = 'block';
   document.getElementById('imp-results').style.display = 'none';
 
-  const isImage = file.type.startsWith('image/');
-  const isText  = file.type === 'text/csv' || file.name.endsWith('.csv') || file.name.endsWith('.txt');
-
   const reader = new FileReader();
-  if (isImage) {
-    reader.onload = e => {
-      const b64 = e.target.result.split(',')[1];
-      importFileData = { type: 'image', data: b64, mediaType: file.type || 'image/png' };
-    };
-    reader.readAsDataURL(file);
-  } else {
-    reader.onload = e => {
-      importFileData = { type: 'text', data: e.target.result };
-    };
-    reader.readAsText(file);
-  }
+  reader.onload = function(e) {
+    csvFileData = e.target.result;
+  };
+  reader.onerror = function() {
+    alert('Could not read file');
+    csvFileData = null;
+  };
+  reader.readAsText(file);
 }
 
 // Drag-and-drop
 (function() {
   const zone = document.getElementById('imp-drop-zone');
   if (!zone) return;
-  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragging'); });
-  zone.addEventListener('dragleave', () => zone.classList.remove('dragging'));
-  zone.addEventListener('drop', e => {
+  zone.addEventListener('dragover', function(e) { e.preventDefault(); zone.classList.add('dragging'); });
+  zone.addEventListener('dragleave', function() { zone.classList.remove('dragging'); });
+  zone.addEventListener('drop', function(e) {
     e.preventDefault(); zone.classList.remove('dragging');
     const f = e.dataTransfer.files[0];
     if (!f) return;
     const dt = new DataTransfer(); dt.items.add(f);
     const inp = document.getElementById('imp-file-input');
     inp.files = dt.files;
-    handleImportFile(inp);
+    handleCsvFile(inp);
   });
 })();
 
-async function analyseImport() {
-  if (!importFileData) { alert('Please select a file first'); return; }
+// Parse a CSV line, handling quoted fields with commas inside
+function parseCsvLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && line[i+1] === '"') {
+        current += '"'; i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (ch === ',' && !inQuotes) {
+      result.push(current);
+      current = '';
+    } else {
+      current += ch;
+    }
+  }
+  result.push(current);
+  return result.map(function(s) { return s.trim().replace(/^"|"$/g, ''); });
+}
 
-  document.getElementById('imp-status').style.display = 'block';
-  document.getElementById('imp-status-text').textContent = 'Sending to AI for analysis…';
+// Parse a date string in various common formats
+function parseFlexibleDate(str) {
+  if (!str) return null;
+  str = str.trim();
+
+  // YYYY-MM-DD
+  let m = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (m) return m[1] + '-' + String(m[2]).padStart(2,'0') + '-' + String(m[3]).padStart(2,'0');
+
+  // DD/MM/YYYY or DD-MM-YYYY (Australian format)
+  m = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (m) return m[3] + '-' + String(m[2]).padStart(2,'0') + '-' + String(m[1]).padStart(2,'0');
+
+  // DD/MM/YY
+  m = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})$/);
+  if (m) {
+    const yr = parseInt(m[3]) < 50 ? '20' + m[3] : '19' + m[3];
+    return yr + '-' + String(m[2]).padStart(2,'0') + '-' + String(m[1]).padStart(2,'0');
+  }
+
+  // "15 Mar 2026"
+  const monthNames = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+  m = str.match(/^(\d{1,2})[\s\-]?([A-Za-z]{3})[\w]*[\s\-]?(\d{2,4})$/);
+  if (m && monthNames[m[2].toLowerCase()]) {
+    const yr = m[3].length === 2 ? (parseInt(m[3]) < 50 ? '20' + m[3] : '19' + m[3]) : m[3];
+    return yr + '-' + String(monthNames[m[2].toLowerCase()]).padStart(2,'0') + '-' + String(m[1]).padStart(2,'0');
+  }
+
+  return null;
+}
+
+// Parse a dollar amount, handling "$", ",", and negative signs
+function parseAmount(str) {
+  if (!str) return 0;
+  const cleaned = str.replace(/[\s,$]/g, '').replace(/[()]/g, '');
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? 0 : num;
+}
+
+function parseCsvImport() {
+  if (!csvFileData) { alert('Please select a CSV file first'); return; }
+
+  const owner = document.getElementById('imp-owner').value;
+  const monthVal = document.getElementById('imp-month-sel').value;
+  const [targetYear, targetMonth] = monthVal.split('-').map(Number);
+
+  const statusEl = document.getElementById('imp-status');
+  const statusText = document.getElementById('imp-status-text');
+  statusEl.style.display = 'block';
+  statusText.textContent = 'Parsing CSV…';
   document.getElementById('imp-results').style.display = 'none';
-  document.getElementById('imp-analyse-btn').disabled = true;
-
-  const owner   = document.getElementById('imp-owner').value;
-  const monthSel = document.getElementById('imp-month-sel').value;
-  const [selYear, selMonth] = monthSel.split('-').map(Number);
-  const monthLabel = MONTHS_FULL[selMonth] + ' ' + selYear;
-
-  const catList = 'Groceries, Dining Out, Uber Eats, Alcohol / Pub, Fuel, Transport, Medical, Personal Care, Clothing, Entertainment, Personal Spending, Home Maintenance, Utilities, Subscriptions, Other';
-
-  const systemPrompt = `You are a financial transaction categoriser for an Australian household budget app.
-The account owner is: ${owner}.
-The statement period is: ${monthLabel}.
-Budget categories available: ${catList}.
-
-Rules:
-- Only include DEBIT transactions (money going out). Ignore credits, transfers between own accounts, and salary credits.
-- Map each transaction description to the most appropriate category.
-- Common mappings: Woolworths/Coles/Aldi/IGA = Groceries; McDonald's/KFC/restaurants/cafes = Dining Out; Menulog/DoorDash/Uber Eats = Uber Eats; BWS/Dan Murphy's/pubs/bars = Alcohol / Pub; BP/Shell/Ampol/Caltex/7-Eleven fuel = Fuel; Uber (non-eats)/taxi/public transport = Transport; pharmacy/doctor/dentist = Medical; haircut/beauty/salon = Personal Care; clothing stores = Clothing; cinema/concerts/Ticketek/entertainment = Entertainment; Netflix/Spotify/subscriptions = Subscriptions; hardware/Bunnings = Home Maintenance; power/gas/water/internet = Utilities; everything else = Other.
-- For the date, use the format YYYY-MM-DD. If only day is visible, use ${selYear}-${String(selMonth+1).padStart(2,'0')}-DD.
-- Owner should be "${owner}" for all transactions unless clearly a shared expense (e.g. joint account grocery shop) in which case use "Shared".
-
-Respond ONLY with a valid JSON array, no markdown, no explanation. Format:
-[{"date":"YYYY-MM-DD","desc":"merchant name cleaned up","cat":"Category","owner":"${owner}","amount":12.50}, ...]
-
-If you cannot read any transactions, return an empty array [].`;
 
   try {
-    let messages;
-    if (importFileData.type === 'image') {
-      messages = [{
-        role: 'user',
-        content: [
-          { type: 'image', source: { type: 'base64', media_type: importFileData.mediaType, data: importFileData.data } },
-          { type: 'text', text: 'Please analyse this bank statement screenshot and extract all debit transactions as instructed.' }
-        ]
-      }];
-    } else {
-      messages = [{
-        role: 'user',
-        content: 'Please analyse this bank statement data and extract all debit transactions as instructed.\n\n' + importFileData.data
-      }];
-    }
+    const lines = csvFileData.split(/\r?\n/).filter(function(l) { return l.trim().length > 0; });
+    if (lines.length < 2) { throw new Error('CSV file is empty or has no data rows'); }
 
-    document.getElementById('imp-status-text').textContent = 'AI is reading your transactions…';
+    // Detect header row and column positions
+    const headerCells = parseCsvLine(lines[0]);
+    const headerLower = headerCells.map(function(h) { return h.toLowerCase(); });
 
-    const resp = await fetch('/api/ai-proxy', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 4000,
-        system: systemPrompt,
-        messages: messages
-      })
+    let dateIdx = -1, descIdx = -1, debitIdx = -1, creditIdx = -1, amountIdx = -1;
+
+    headerLower.forEach(function(h, i) {
+      if (dateIdx === -1 && (h.indexOf('date') !== -1)) dateIdx = i;
+      if (descIdx === -1 && (h.indexOf('description') !== -1 || h.indexOf('narration') !== -1 || h.indexOf('details') !== -1 || h.indexOf('payee') !== -1 || h.indexOf('merchant') !== -1)) descIdx = i;
+      if (debitIdx === -1 && (h.indexOf('debit') !== -1 || h === 'withdrawal' || h.indexOf('withdrawal') !== -1)) debitIdx = i;
+      if (creditIdx === -1 && (h.indexOf('credit') !== -1 || h.indexOf('deposit') !== -1)) creditIdx = i;
+      if (amountIdx === -1 && h === 'amount') amountIdx = i;
     });
 
-    const data = await resp.json();
-    if (!resp.ok) {
-      const msg = (data.error && data.error.message) ? data.error.message : 'API error ' + resp.status;
-      throw new Error(msg);
+    // If no header detected, assume St.George default format:
+    // Date, Description, Debit, Credit, Balance
+    let hasHeader = dateIdx !== -1 || descIdx !== -1;
+    if (!hasHeader) {
+      dateIdx = 0;
+      descIdx = 1;
+      debitIdx = 2;
+      creditIdx = 3;
     }
-    if (!data.content || !Array.isArray(data.content)) {
-      throw new Error('Unexpected response from AI: ' + JSON.stringify(data).slice(0, 200));
+
+    // If no explicit amount/debit/credit columns found, try to auto-detect
+    if (debitIdx === -1 && creditIdx === -1 && amountIdx === -1) {
+      // Look for a column that has $ or numeric values
+      const sampleRow = parseCsvLine(lines[1] || lines[0]);
+      for (let i = 0; i < sampleRow.length; i++) {
+        if (i === dateIdx || i === descIdx) continue;
+        if (/-?[\d,]+\.?\d*/.test(sampleRow[i])) {
+          amountIdx = i;
+          break;
+        }
+      }
     }
-    const textBlock = data.content.find(function(b) { return b.type === 'text'; });
-    const raw = textBlock ? textBlock.text : '[]';
-    const cleaned = raw.replace(/```json|```/g, '').trim();
-    importResults = JSON.parse(cleaned);
 
-    // Security: immediately discard the raw file data (screenshot/CSV) from memory
-    // The extracted transaction data is all we need from this point forward
-    importFileData = null;
-    var fileInput = document.getElementById('imp-file-input');
-    if (fileInput) fileInput.value = '';
+    if (dateIdx === -1) throw new Error('Could not find a date column in the CSV');
+    if (descIdx === -1) throw new Error('Could not find a description column in the CSV');
+    if (debitIdx === -1 && creditIdx === -1 && amountIdx === -1) throw new Error('Could not find an amount/debit column in the CSV');
 
-    if (!Array.isArray(importResults)) throw new Error('Unexpected response format');
+    const parsed = [];
+    const startRow = hasHeader ? 1 : 0;
+    let skippedNonDebits = 0;
+    let skippedOutsideMonth = 0;
 
-    document.getElementById('imp-status').style.display = 'none';
-    document.getElementById('imp-analyse-btn').disabled = false;
+    for (let i = startRow; i < lines.length; i++) {
+      const cells = parseCsvLine(lines[i]);
+      if (cells.length < 2) continue;
 
-    if (importResults.length === 0) {
-      document.getElementById('imp-status').style.display = 'block';
-      document.getElementById('imp-spinner').style.display = 'none';
-      document.getElementById('imp-status-text').textContent = '⚠ No debit transactions found. Try a clearer screenshot or a CSV export.';
+      const dateStr = cells[dateIdx];
+      const desc = cells[descIdx];
+      if (!dateStr || !desc) continue;
+
+      const isoDate = parseFlexibleDate(dateStr);
+      if (!isoDate) continue;
+
+      // Check date is in the selected month
+      const dateParts = isoDate.split('-').map(Number);
+      if (dateParts[0] !== targetYear || (dateParts[1] - 1) !== targetMonth) {
+        skippedOutsideMonth++;
+        continue;
+      }
+
+      // Determine amount (positive = debit/spend)
+      let amount = 0;
+      if (debitIdx !== -1 && cells[debitIdx]) {
+        amount = parseAmount(cells[debitIdx]);
+      } else if (amountIdx !== -1 && cells[amountIdx]) {
+        const a = parseAmount(cells[amountIdx]);
+        // Negative amount = debit (spend) in most formats
+        if (a < 0) amount = Math.abs(a);
+        else {
+          skippedNonDebits++;
+          continue; // Positive in amount column = credit/income
+        }
+      }
+
+      if (amount <= 0) {
+        skippedNonDebits++;
+        continue;
+      }
+
+      // Auto-categorise using the same rules as Up Bank
+      const cat = categorizeMerchant(desc);
+
+      parsed.push({
+        date: isoDate,
+        desc: desc.replace(/\s+/g, ' ').trim(),
+        cat: cat,
+        owner: owner,
+        amount: amount
+      });
+    }
+
+    if (parsed.length === 0) {
+      statusText.textContent = 'No debit transactions found for ' + MONTHS_FULL[targetMonth] + ' ' + targetYear + '. Make sure you selected the right month.';
       return;
     }
 
-    renderImportResults(importResults, monthLabel);
+    // Dedup against existing transactions for that month
+    const mk = getMonthKey(targetYear, targetMonth);
+    const existing = state.transactions[mk] || [];
+    const existingKeys = {};
+    existing.forEach(function(t) {
+      existingKeys[t.date + '|' + t.desc + '|' + t.amount] = true;
+    });
+    const deduped = parsed.filter(function(t) {
+      return !existingKeys[t.date + '|' + t.desc + '|' + t.amount];
+    });
 
+    if (deduped.length === 0) {
+      statusText.textContent = 'All ' + parsed.length + ' transactions are already in your tracker for ' + MONTHS_FULL[targetMonth] + ' ' + targetYear + '.';
+      return;
+    }
+
+    statusEl.style.display = 'none';
+
+    // Show results for review
+    importResults = deduped;
+    let label = MONTHS_FULL[targetMonth] + ' ' + targetYear;
+    if (parsed.length !== deduped.length) {
+      label += ' (' + (parsed.length - deduped.length) + ' already imported, skipped)';
+    }
+    renderImportResults(deduped, label);
+    document.getElementById('imp-month-sel').value = monthVal;
+
+    // Clear the file data — we have the parsed results now
+    csvFileData = null;
+    const inp = document.getElementById('imp-file-input');
+    if (inp) inp.value = '';
   } catch (err) {
-    // Security: clear file data even on error
-    importFileData = null;
-    var errFileInput = document.getElementById('imp-file-input');
-    if (errFileInput) errFileInput.value = '';
-    document.getElementById('imp-status').style.display = 'block';
-    document.getElementById('imp-spinner').style.display = 'none';
-    document.getElementById('imp-status-text').textContent = '✗ Error: ' + err.message;
-    document.getElementById('imp-analyse-btn').disabled = false;
+    statusText.textContent = '✗ ' + err.message;
+    console.error('[CSV Import]', err);
   }
 }
+
 
 const ALL_CATS = ['Groceries','Dining Out','Uber Eats','Alcohol / Pub','Fuel','Transport','Medical','Personal Care','Clothing','Entertainment','Personal Spending','Home Maintenance','Utilities','Subscriptions','Other'];
 
@@ -3051,16 +3078,12 @@ function cancelImport() {
 }
 
 function clearImportForm() {
-  importFileData = null;
+  csvFileData = null;
   importResults = [];
-  const ta = document.getElementById('imp-paste-text');
-  if (ta) ta.value = '';
-  const pp = document.getElementById('imp-paste-preview');
-  if (pp) pp.style.display = 'none';
   const fp = document.getElementById('imp-file-preview');
   if (fp) fp.style.display = 'none';
-  const ab = document.getElementById('imp-analyse-btn');
-  if (ab) ab.style.display = 'none';
+  const pb = document.getElementById('imp-parse-btn');
+  if (pb) pb.style.display = 'none';
   const fi = document.getElementById('imp-file-input');
   if (fi) fi.value = '';
 }
