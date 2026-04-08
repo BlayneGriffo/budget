@@ -4841,6 +4841,16 @@ document.addEventListener('DOMContentLoaded', function() {
   if (pw) pw.addEventListener('keydown', function(e) { if (e.key === 'Enter') doLogin(); });
   const em = document.getElementById('login-email');
   if (em) em.addEventListener('keydown', function(e) { if (e.key === 'Enter') pw.focus(); });
+
+  // Fix: some modals are nested inside .page containers in the HTML, which
+  // means they inherit display:none when their page isn't active. Move all
+  // modal-overlay elements to the top level of <body> so they render
+  // independently of which page is currently visible.
+  document.querySelectorAll('.modal-overlay').forEach(function(modal) {
+    if (modal.parentElement !== document.body) {
+      document.body.appendChild(modal);
+    }
+  });
 });
 
 
