@@ -1879,6 +1879,13 @@ function getMonthTxns(year, month) {
 
 function fmt(n) { return '$' + Math.abs(Math.round(n)).toLocaleString(); }
 function fmtDec(n) { return '$' + Math.abs(n).toFixed(2); }
+// Like fmt but preserves the negative sign: -1000 → "-$1,000", 1000 → "$1,000"
+// Used for surplus / pool-remaining tiles where the sign carries meaning.
+function fmtSigned(n) {
+  const r = Math.round(n);
+  if (r < 0) return '-$' + Math.abs(r).toLocaleString();
+  return '$' + r.toLocaleString();
+}
 function sign(n) { return n >= 0 ? '+' : '-'; }
 function today() { return new Date(); }
 
@@ -2148,7 +2155,7 @@ function renderDashboard() {
       '<div class="metric"><div class="metric-label">' + incomeLabel + '</div><div class="metric-value">' + fmt(incomeData.total) + '</div><div class="metric-sub">' + incomeSub + '</div></div>' +
       '<div class="metric"><div class="metric-label">total budget</div><div class="metric-value">' + fmt(expenses.total) + '</div><div class="metric-sub" style="font-size:11px;line-height:1.4;">' + budgetSub + '</div></div>' +
       '<div class="metric"><div class="metric-label">variable spent</div><div class="metric-value ' + (varDiff > 0 || (isCurrentMonth && paceRatioDash > 1.1) ? 'neg' : 'pos') + '">' + fmt(actualSpend) + '</div><div class="metric-sub">' + varSpentSub + '</div></div>' +
-      '<div class="metric"><div class="metric-label">' + surplusTileLabel + '</div><div class="metric-value ' + surplusColourClass(actualSurplus, incomeData.total) + '">' + fmt(actualSurplus) + '</div><div class="metric-sub">' + surplusLabel + '</div></div>';
+      '<div class="metric"><div class="metric-label">' + surplusTileLabel + '</div><div class="metric-value ' + surplusColourClass(actualSurplus, incomeData.total) + '">' + fmtSigned(actualSurplus) + '</div><div class="metric-sub">' + surplusLabel + '</div></div>';
   }
 
   // ── CATEGORY BARS ──
@@ -2846,7 +2853,7 @@ function renderTracker() {
       '<div class="metric"><div class="metric-label">fixed expenses</div><div class="metric-value">' + fmt(totalFixed) + '</div><div class="metric-sub" style="font-size:11px;line-height:1.4;">' + fixedSub + '</div></div>' +
       '<div class="metric"><div class="metric-label">variable budget</div><div class="metric-value">' + fmt(totalVar) + '</div>' + (varBudgetSub ? '<div class="metric-sub" style="font-size:11px;line-height:1.4;">' + varBudgetSub + '</div>' : '') + '</div>' +
       '<div class="metric"><div class="metric-label">variable actual</div><div class="metric-value ' + (varDiff > 0 ? 'neg' : (isCurrentMonth && paceRatio > 1.1 ? 'neg' : 'pos')) + '" id="tracker-actual-metric">' + fmt(totalActual) + '</div><div class="metric-sub">' + actualSub + '</div></div>' +
-      '<div class="metric"><div class="metric-label">' + surplusTileLabel + '</div><div class="metric-value ' + surplusColourClass(actualSurplus, income) + '" id="tracker-surplus-metric">' + fmt(actualSurplus) + '</div><div class="metric-sub">' + surplusSub + '</div></div>';
+      '<div class="metric"><div class="metric-label">' + surplusTileLabel + '</div><div class="metric-value ' + surplusColourClass(actualSurplus, income) + '" id="tracker-surplus-metric">' + fmtSigned(actualSurplus) + '</div><div class="metric-sub">' + surplusSub + '</div></div>';
   }
 
   // ── Variable breakdown table ──
@@ -3927,7 +3934,7 @@ function updateCatActual(input) {
   }
   if (surplusEl) {
     const surp = income.total - totalFixed - newTotal;
-    surplusEl.textContent = fmt(surp);
+    surplusEl.textContent = fmtSigned(surp);
     surplusEl.className = 'metric-value ' + surplusColourClass(surp, income.total);
   }
 }
