@@ -301,6 +301,7 @@
     <button class="nav-tab" onclick="showPage('forecast',this)">Forecast</button>
     <button class="nav-tab" onclick="showPage('mortgage',this)">Mortgage</button>
     <button class="nav-tab" onclick="showPage('carfinance',this)">Car Finance</button>
+    <button class="nav-tab" onclick="showPage('personal',this)">Personal</button>
     <button class="nav-tab" onclick="showPage('budget',this)">Budget Settings</button>
     <button class="nav-tab" onclick="showPage('savings',this)">Savings</button>
     <button class="nav-tab" onclick="showPage('import',this)">Import</button>
@@ -1172,6 +1173,27 @@
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════ PERSONAL ══ -->
+<div id="page-personal" class="page">
+  <div class="flex between flex-center mb-20" style="flex-wrap:wrap;gap:12px;">
+    <div>
+      <div style="font-size:20px;font-weight:600;">Personal Surplus &amp; Set Aside</div>
+      <div style="font-size:13px;color:var(--text3);margin-top:2px;">How much each person needs to stash per pay period to cover their own fixed &amp; irregular bills — and what's left over to save.</div>
+    </div>
+    <div style="display:flex;border:1px solid var(--border2);border-radius:8px;overflow:hidden;">
+      <button class="ps-period-btn" data-val="weekly" onclick="setPersonalPeriod('weekly')" style="font-family:var(--font);font-size:12px;padding:8px 14px;border:none;cursor:pointer;background:var(--surface);color:var(--text2);">Weekly</button>
+      <button class="ps-period-btn" data-val="fortnightly" onclick="setPersonalPeriod('fortnightly')" style="font-family:var(--font);font-size:12px;padding:8px 14px;border:none;border-left:1px solid var(--border2);cursor:pointer;background:var(--accent);color:#fff;">Fortnightly</button>
+      <button class="ps-period-btn" data-val="monthly" onclick="setPersonalPeriod('monthly')" style="font-family:var(--font);font-size:12px;padding:8px 14px;border:none;border-left:1px solid var(--border2);cursor:pointer;background:var(--surface);color:var(--text2);">Monthly</button>
+    </div>
+  </div>
+
+  <div class="info-box mb-16" style="font-size:12px;color:var(--text2);line-height:1.6;">
+    <strong>How this works:</strong> For each bill with a due date, the required set-aside is <code style="background:var(--surface2);padding:1px 5px;border-radius:3px;font-family:var(--mono);font-size:11px;">(amount − already saved) ÷ days until due × days in period</code>. Bills get more urgent as the due date approaches. Add a due date + amount saved to any non-monthly budget item in Budget Settings to have it show up here.
+  </div>
+
+  <div class="grid-2" id="personal-people-wrap"></div>
+</div>
+
 <!-- ADD / EDIT ACCOUNT MODAL -->
 <div class="modal-overlay" id="modal-account">
   <div class="modal">
@@ -1727,6 +1749,7 @@ let state = {
   merchantRules: JSON.parse(localStorage.getItem('merchant_rules') || '[]'),
   settlements: JSON.parse(localStorage.getItem('settlements') || '{}'),
   carLoans: JSON.parse(localStorage.getItem('car_loans') || '[]'),
+  personalAllocations: JSON.parse(localStorage.getItem('personal_allocations') || '{}'),
   synced: false
 };
 
@@ -1739,6 +1762,7 @@ function saveLocal() {
   localStorage.setItem('merchant_rules', JSON.stringify(state.merchantRules || []));
   localStorage.setItem('settlements', JSON.stringify(state.settlements || {}));
   localStorage.setItem('car_loans', JSON.stringify(state.carLoans || []));
+  localStorage.setItem('personal_allocations', JSON.stringify(state.personalAllocations || {}));
   // Belt-and-braces auto-save: schedule a debounced Supabase sync
   // in case any code path mutates state without calling saveState() directly
   scheduleAutoSave();
@@ -1917,6 +1941,7 @@ function showPage(id, callerEl) {
   if (id === 'forecast') renderForecast();
   if (id === 'mortgage') renderMortgage();
   if (id === 'carfinance') renderCarFinance();
+  if (id === 'personal') renderPersonal();
   if (id === 'budget') renderBudgetSettings();
   if (id === 'import') populateImportMonthSel();
   if (id === 'savings') renderSavings();
@@ -3701,7 +3726,9 @@ function renderBudgetSettings() {
               <th style="text-align:left;padding:5px 8px;font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;width:14%">frequency</th>
               <th style="text-align:left;padding:5px 8px;font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;width:10%">type</th>
               <th style="text-align:right;padding:5px 8px;font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;width:13%">amount</th>
-              <th style="text-align:right;padding:5px 8px;font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;width:13%">monthly $</th>
+              <th style="text-align:left;padding:5px 8px;font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;width:11%" title="Only relevant for non-monthly bills">due date</th>
+              <th style="text-align:right;padding:5px 8px;font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;width:10%" title="How much already set aside toward this bill">saved</th>
+              <th style="text-align:right;padding:5px 8px;font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;width:11%">monthly $</th>
               <th style="width:36px;"></th>
             </tr>
           </thead>
@@ -3714,6 +3741,8 @@ function renderBudgetSettings() {
                 <td style="padding:5px 8px;">${inSel('freq', ['monthly','fortnightly','weekly','quarterly','annually'], item.freq, i, 'freq')}</td>
                 <td style="padding:5px 8px;">${inSel('type', ['Fixed','Variable'], item.type, i, 'type')}</td>
                 <td style="padding:5px 8px;text-align:right;">${isMortgage ? `<span style="font-size:12px;font-family:var(--mono);color:var(--text3);">auto</span>` : inNum(item.amt, i, 'amt')}</td>
+                <td style="padding:5px 8px;">${(isMortgage || item.freq === 'monthly') ? `<span style="font-size:11px;color:var(--text3);">—</span>` : `<input type="date" data-idx="${i}" data-field="dueDate" value="${item.dueDate||''}" onchange="updateBudgetItem(this)" style="font-size:11px;padding:3px 5px;border:1px solid var(--border2);border-radius:5px;background:var(--surface);color:var(--text);width:100%;">`}</td>
+                <td style="padding:5px 8px;text-align:right;">${(isMortgage || item.freq === 'monthly') ? `<span style="font-size:11px;color:var(--text3);">—</span>` : `<input type="number" data-idx="${i}" data-field="amountSaved" value="${item.amountSaved!=null?item.amountSaved:''}" min="0" step="0.01" placeholder="0" oninput="updateBudgetItem(this)" style="font-size:12px;padding:4px 6px;border:1px solid var(--border2);border-radius:5px;width:70px;text-align:right;background:var(--surface);color:var(--text);font-family:var(--mono);">`}</td>
                 <td style="padding:5px 8px;text-align:right;font-family:var(--mono);color:var(--text2);" id="bi-monthly-${i}">${fmt(item.monthly)}</td>
                 <td style="padding:5px 8px;text-align:right;">${isMortgage ? '' : `<button class="btn btn-sm btn-danger" onclick="deleteBudgetItem(${i})" title="Remove">×</button>`}</td>
               </tr>`;
@@ -3738,6 +3767,15 @@ function updateBudgetItem(el) {
   } else if (field === 'freq') {
     item.freq = el.value;
     item.monthly = (item.amt || 0) * toMonthly(item.freq);
+    // If switching to monthly, clear the date-based fields since they're irrelevant
+    if (item.freq === 'monthly') {
+      delete item.dueDate;
+      delete item.amountSaved;
+    }
+  } else if (field === 'amountSaved') {
+    item.amountSaved = parseFloat(el.value) || 0;
+  } else if (field === 'dueDate') {
+    item.dueDate = el.value || '';
   } else {
     item[field] = el.value;
   }
@@ -3780,7 +3818,268 @@ function deleteBudgetItem(i) {
   renderBudgetSettings();
 }
 
-// ════════════════ EXPENSE MODAL ════════════════
+// ════════════════ PERSONAL SURPLUS & SET ASIDE ════════════════
+
+var personalPeriod = 'fortnightly'; // 'weekly' | 'fortnightly' | 'monthly'
+
+function setPersonalPeriod(p) {
+  personalPeriod = p;
+  document.querySelectorAll('.ps-period-btn').forEach(function(btn) {
+    var on = btn.dataset.val === p;
+    btn.style.background = on ? 'var(--accent)' : 'var(--surface)';
+    btn.style.color = on ? '#fff' : 'var(--text2)';
+  });
+  renderPersonal();
+}
+
+function personalPeriodDays(p) {
+  if (p === 'weekly') return 7;
+  if (p === 'fortnightly') return 14;
+  return 30.44; // average days/month
+}
+
+function personalPeriodsPerMonth(p) {
+  if (p === 'weekly') return 52 / 12;
+  if (p === 'fortnightly') return 26 / 12;
+  return 1;
+}
+
+function personalPeriodLabel(p) {
+  if (p === 'weekly') return 'week';
+  if (p === 'fortnightly') return 'fortnight';
+  return 'month';
+}
+
+// For a single budget item with a due date, return the set-aside required this period
+function calcSetAsideForItem(item, periodDays) {
+  var amt = item.amt || 0;
+  var saved = item.amountSaved || 0;
+  var remaining = amt - saved;
+  if (remaining <= 0) return { perPeriod: 0, covered: true, daysUntil: 0, remaining: 0 };
+  if (!item.dueDate) {
+    // No due date — fall back to flat monthly contribution
+    var monthly = item.monthly || 0;
+    var perPeriod = monthly * (periodDays / 30.44);
+    return { perPeriod: perPeriod, covered: false, daysUntil: null, remaining: remaining };
+  }
+  var due = new Date(item.dueDate + 'T00:00:00');
+  var now = new Date();
+  now.setHours(0, 0, 0, 0);
+  var daysUntil = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
+  if (daysUntil <= 0) daysUntil = 1; // avoid div by zero; bill is due now/overdue
+  var dailyRate = remaining / daysUntil;
+  return { perPeriod: dailyRate * periodDays, covered: false, daysUntil: daysUntil, remaining: remaining };
+}
+
+// Calculate the shared fixed cost share per period for a person (50/50 split)
+function calcSharedShareForPeriod(periodDays) {
+  // Sum all Shared Fixed items at their monthly rate (including dynamic mortgage)
+  var rate = state.config.rate;
+  var mortFn = calcMortgagePmt(state.config.loanBalance, rate);
+  var mortMonthly = mortFn * 2;
+  var sharedFixedMonthly = 0;
+  state.budgetItems.forEach(function(item) {
+    if (item.owner !== 'Shared') return;
+    if (item.type !== 'Fixed') return;
+    if (item.desc === 'Mortgage repayment') {
+      sharedFixedMonthly += mortMonthly;
+    } else {
+      sharedFixedMonthly += (item.monthly || 0);
+    }
+  });
+  var perPeriod = sharedFixedMonthly * (periodDays / 30.44);
+  return perPeriod / 2; // 50/50 split
+}
+
+function renderPersonal() {
+  var wrap = document.getElementById('personal-people-wrap');
+  if (!wrap) return;
+
+  var cfg = state.config;
+  var periodDays = personalPeriodDays(personalPeriod);
+  var label = personalPeriodLabel(personalPeriod);
+
+  // Income per period (each person)
+  // Blayne: weekly pay → multiply by weeks in period
+  // Sophie: fortnightly pay → multiply by fortnights in period
+  function personIncomePerPeriod(amt, freq) {
+    if (!amt) return 0;
+    var daysPerPayFreq = freq === 'weekly' ? 7 : freq === 'fortnightly' ? 14 : 30.44;
+    return amt * (periodDays / daysPerPayFreq);
+  }
+  var blayneInc = personIncomePerPeriod(cfg.blayneAmt, cfg.blayneFreq);
+  var sophieInc = personIncomePerPeriod(cfg.sophieAmt, cfg.sophieFreq);
+
+  var sharedShare = calcSharedShareForPeriod(periodDays);
+
+  // Build per-person breakdown
+  function buildPerson(name, income) {
+    // Personal items (owner = this person)
+    var personalItems = state.budgetItems.filter(function(it) { return it.owner === name; });
+
+    // Must Set Aside: Fixed items (personal)
+    var mustItems = personalItems.filter(function(it) { return it.type === 'Fixed'; });
+    // Recommended Buffer: Variable personal items
+    var bufferItems = personalItems.filter(function(it) { return it.type === 'Variable'; });
+
+    var mustRows = [];
+    var mustTotal = 0;
+    mustItems.forEach(function(it) {
+      var calc = calcSetAsideForItem(it, periodDays);
+      mustTotal += calc.perPeriod;
+      mustRows.push({ item: it, calc: calc });
+    });
+
+    var bufferTotal = 0;
+    bufferItems.forEach(function(it) {
+      bufferTotal += (it.monthly || 0) * (periodDays / 30.44);
+    });
+
+    var trueSurplus = income - sharedShare - mustTotal;
+    var surplusAfterBuffer = trueSurplus - bufferTotal;
+    var surplusClass = surplusColourClass(trueSurplus, income);
+
+    var mustHtml = mustRows.length === 0
+      ? '<div style="font-size:12px;color:var(--text3);padding:10px 0;">No personal fixed bills. Add some in Budget Settings.</div>'
+      : '<table style="width:100%;border-collapse:collapse;font-size:12px;">' +
+          '<thead><tr style="border-bottom:1px solid var(--border);">' +
+          '<th style="text-align:left;padding:6px 4px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;font-weight:600;">bill</th>' +
+          '<th style="text-align:left;padding:6px 4px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;font-weight:600;">due</th>' +
+          '<th style="text-align:right;padding:6px 4px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;font-weight:600;">owed</th>' +
+          '<th style="text-align:right;padding:6px 4px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;font-weight:600;">saved</th>' +
+          '<th style="text-align:right;padding:6px 4px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;font-weight:600;">per ' + label + '</th>' +
+          '</tr></thead><tbody>' +
+          mustRows.map(function(r) {
+            var it = r.item;
+            var c = r.calc;
+            var dueTxt = '—';
+            if (it.dueDate) {
+              var d = new Date(it.dueDate + 'T00:00:00');
+              dueTxt = d.toLocaleDateString('en-AU', { day:'numeric', month:'short' });
+              if (c.daysUntil != null) dueTxt += ' <span style="color:var(--text3);">(' + c.daysUntil + 'd)</span>';
+            } else {
+              dueTxt = '<span style="color:var(--text3);">monthly</span>';
+            }
+            var perTxt;
+            if (c.covered) {
+              perTxt = '<span style="color:var(--green);">✓ covered</span>';
+            } else {
+              perTxt = '<span style="font-family:var(--mono);">' + fmt(c.perPeriod) + '</span>';
+            }
+            return '<tr style="border-bottom:1px solid var(--border);">' +
+              '<td style="padding:6px 4px;color:var(--text);">' + it.desc + '</td>' +
+              '<td style="padding:6px 4px;color:var(--text2);font-size:11px;">' + dueTxt + '</td>' +
+              '<td style="padding:6px 4px;text-align:right;font-family:var(--mono);color:var(--text2);">' + fmt(it.amt || 0) + '</td>' +
+              '<td style="padding:6px 4px;text-align:right;font-family:var(--mono);color:var(--text3);">' + fmt(it.amountSaved || 0) + '</td>' +
+              '<td style="padding:6px 4px;text-align:right;">' + perTxt + '</td>' +
+              '</tr>';
+          }).join('') +
+          '<tr><td colspan="4" style="padding:8px 4px;text-align:right;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;font-weight:600;">total must set aside</td>' +
+          '<td style="padding:8px 4px;text-align:right;font-family:var(--mono);font-weight:600;color:var(--text);">' + fmt(mustTotal) + '</td></tr>' +
+          '</tbody></table>';
+
+    var bufferHtml = bufferItems.length === 0
+      ? ''
+      : '<div class="card" style="margin-top:12px;background:var(--surface2);border-style:dashed;">' +
+          '<div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">recommended buffer <span style="text-transform:none;letter-spacing:0;font-weight:400;">— soft suggestion, variable personal costs</span></div>' +
+          bufferItems.map(function(it) {
+            var p = (it.monthly || 0) * (periodDays / 30.44);
+            return '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;">' +
+              '<span style="color:var(--text2);">' + it.desc + '</span>' +
+              '<span style="font-family:var(--mono);color:var(--text2);">' + fmt(p) + '</span></div>';
+          }).join('') +
+          '<div style="display:flex;justify-content:space-between;padding:8px 0 0 0;border-top:1px solid var(--border);margin-top:4px;font-size:12px;">' +
+            '<span style="font-weight:600;color:var(--text);">Total buffer per ' + label + '</span>' +
+            '<span style="font-family:var(--mono);font-weight:600;color:var(--text);">' + fmt(bufferTotal) + '</span></div>' +
+        '</div>';
+
+    // Surplus allocation UI
+    var allocs = (state.personalAllocations && state.personalAllocations[name]) || {};
+    var savingsAccs = (state.accounts || []).filter(function(a) {
+      return (a.owner === name || a.owner === 'Shared') && !a.isOffset;
+    });
+    var allocatedTotal = 0;
+    Object.keys(allocs).forEach(function(k) { allocatedTotal += (parseFloat(allocs[k]) || 0); });
+    var unallocated = surplusAfterBuffer - allocatedTotal;
+
+    var allocHtml = '<div class="card" style="margin-top:12px;">' +
+      '<div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">allocate surplus to savings goals</div>';
+    if (savingsAccs.length === 0) {
+      allocHtml += '<div style="font-size:12px;color:var(--text3);">No savings accounts available. Add one in the Savings page.</div>';
+    } else {
+      savingsAccs.forEach(function(acc) {
+        var key = acc.name;
+        var val = allocs[key] || '';
+        var perPeriod = parseFloat(val) || 0;
+        var perMonth = perPeriod * personalPeriodsPerMonth(personalPeriod);
+        var goalTxt = '';
+        if (acc.goalTarget > 0) {
+          var toGo = Math.max(acc.goalTarget - (acc.balance || 0), 0);
+          if (toGo <= 0) {
+            goalTxt = '<span style="color:var(--green);">✓ goal reached</span>';
+          } else if (perMonth > 0) {
+            var months = toGo / perMonth;
+            var yrs = Math.floor(months / 12);
+            var mos = Math.round(months % 12);
+            var timeTxt = yrs > 0 ? (yrs + 'y ' + mos + 'mo') : (Math.ceil(months) + ' mo');
+            goalTxt = '<span style="color:var(--text3);">' + fmt(toGo) + ' to go → ' + timeTxt + '</span>';
+          } else {
+            goalTxt = '<span style="color:var(--text3);">' + fmt(toGo) + ' to go</span>';
+          }
+        } else if (acc.goalLabel) {
+          goalTxt = '<span style="color:var(--text3);">' + acc.goalLabel + '</span>';
+        }
+        allocHtml += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;">' +
+          '<div style="flex:1;min-width:0;">' +
+            '<div style="color:var(--text);font-weight:500;">' + acc.name + '</div>' +
+            '<div style="font-size:11px;margin-top:2px;">' + goalTxt + '</div>' +
+          '</div>' +
+          '<input type="number" step="0.01" min="0" placeholder="0" value="' + val + '" ' +
+            'data-person="' + name + '" data-acc="' + key.replace(/"/g,'&quot;') + '" ' +
+            'oninput="updatePersonalAllocation(this)" ' +
+            'style="width:80px;padding:5px 7px;border:1px solid var(--border2);border-radius:5px;background:var(--surface);color:var(--text);font-family:var(--mono);font-size:12px;text-align:right;">' +
+          '<span style="font-size:10px;color:var(--text3);width:36px;">/ ' + label + '</span>' +
+          '</div>';
+      });
+      allocHtml += '<div style="display:flex;justify-content:space-between;padding:10px 0 0 0;font-size:12px;">' +
+        '<span style="color:var(--text2);">Unallocated</span>' +
+        '<span style="font-family:var(--mono);font-weight:600;color:' + (unallocated < 0 ? 'var(--red)' : 'var(--text)') + ';">' + fmtSigned(unallocated) + '</span></div>';
+    }
+    allocHtml += '</div>';
+
+    return '<div class="card">' +
+      '<div class="card-title">' + name + ' — per ' + label + '</div>' +
+      '<div class="metrics" style="margin-bottom:12px;">' +
+        '<div class="metric"><div class="label">income</div><div class="value" style="font-family:var(--mono);">' + fmt(income) + '</div></div>' +
+        '<div class="metric"><div class="label">share of shared</div><div class="value neg" style="font-family:var(--mono);">−' + fmt(sharedShare) + '</div></div>' +
+        '<div class="metric"><div class="label">must set aside</div><div class="value neg" style="font-family:var(--mono);">−' + fmt(mustTotal) + '</div></div>' +
+        '<div class="metric"><div class="label">true surplus</div><div class="value ' + surplusClass + '" style="font-family:var(--mono);">' + fmtSigned(trueSurplus) + '</div></div>' +
+      '</div>' +
+      '<div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">must set aside — fixed &amp; irregular bills</div>' +
+      mustHtml +
+      bufferHtml +
+      allocHtml +
+      '</div>';
+  }
+
+  wrap.innerHTML = buildPerson('Blayne', blayneInc) + buildPerson('Sophie', sophieInc);
+}
+
+function updatePersonalAllocation(el) {
+  var person = el.dataset.person;
+  var acc = el.dataset.acc;
+  if (!state.personalAllocations) state.personalAllocations = {};
+  if (!state.personalAllocations[person]) state.personalAllocations[person] = {};
+  var v = parseFloat(el.value);
+  if (isNaN(v) || v <= 0) {
+    delete state.personalAllocations[person][acc];
+  } else {
+    state.personalAllocations[person][acc] = v;
+  }
+  saveState();
+  // Re-render just to update the unallocated total (lightweight enough)
+  renderPersonal();
+}
 
 function openAddExpense() {
   const now2 = today();
@@ -5797,6 +6096,7 @@ function mobileNav(id, btnEl) {
   else if (id === 'forecast') renderForecast();
   else if (id === 'mortgage') renderMortgage();
   else if (id === 'carfinance') renderCarFinance();
+  else if (id === 'personal') renderPersonal();
   else if (id === 'budget') renderBudgetSettings();
   else if (id === 'savings') renderSavings();
   else if (id === 'import') populateImportMonthSel();
@@ -6091,6 +6391,7 @@ async function initApp() {
 <div id="mobile-more" style="display:none;position:fixed;bottom:54px;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);z-index:149;padding:8px 0;">
   <button onclick="mobileNav('mortgage',null);toggleMobileMore()" style="width:100%;padding:14px 20px;text-align:left;border:none;background:none;font-family:var(--font);font-size:14px;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:12px;">🏠 <span>Mortgage</span></button>
   <button onclick="mobileNav('carfinance',null);toggleMobileMore()" style="width:100%;padding:14px 20px;text-align:left;border:none;background:none;font-family:var(--font);font-size:14px;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:12px;">🚗 <span>Car Finance</span></button>
+  <button onclick="mobileNav('personal',null);toggleMobileMore()" style="width:100%;padding:14px 20px;text-align:left;border:none;background:none;font-family:var(--font);font-size:14px;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:12px;">👤 <span>Personal</span></button>
   <button onclick="mobileNav('budget',null);toggleMobileMore()" style="width:100%;padding:14px 20px;text-align:left;border:none;background:none;font-family:var(--font);font-size:14px;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:12px;">⚙️ <span>Budget Settings</span></button>
   <button onclick="mobileNav('import',null);toggleMobileMore()" style="width:100%;padding:14px 20px;text-align:left;border:none;background:none;font-family:var(--font);font-size:14px;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:12px;">📥 <span>Import</span></button>
   <button onclick="doLogout();toggleMobileMore()" style="width:100%;padding:14px 20px;text-align:left;border:none;background:none;font-family:var(--font);font-size:14px;color:var(--red);cursor:pointer;display:flex;align-items:center;gap:12px;">↩ <span>Sign out</span></button>
