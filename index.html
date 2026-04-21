@@ -2458,6 +2458,8 @@ function renderRollingAverages(year, month, tab) {
 
     var diff = currentAmt - prevAvg;
     var diffPct = prevAvg > 0 ? (diff / prevAvg * 100) : 0;
+    // Flag categories that have no prior-month data so we can label them "new" instead of "steady"
+    var noPrev = prevAvg <= 0 && currentAmt > 0;
 
     rows.push({
       cat: c,
@@ -2465,7 +2467,8 @@ function renderRollingAverages(year, month, tab) {
       avg: prevAvg,
       budget: budget,
       diff: diff,
-      diffPct: diffPct
+      diffPct: diffPct,
+      noPrev: noPrev
     });
   });
 
@@ -2491,12 +2494,15 @@ function renderRollingAverages(year, month, tab) {
     '</tr></thead><tbody>' +
     rows.map(function(r) {
       var trendIcon, trendColor, trendText;
-      if (Math.abs(r.diffPct) < 5) {
+      if (r.noPrev) {
+        // No prior-month data — "steady" is meaningless; call it out as first occurrence
+        trendIcon = '→'; trendColor = 'var(--text3)'; trendText = 'new this period';
+      } else if (Math.abs(r.diffPct) < 5) {
         trendIcon = '→'; trendColor = 'var(--text3)'; trendText = 'steady';
       } else if (r.diff > 0) {
         trendIcon = '↑'; trendColor = 'var(--red)'; trendText = '+' + fmt(r.diff) + ' (' + r.diffPct.toFixed(0) + '%)';
       } else {
-        trendIcon = '↓'; trendColor = 'var(--green)'; trendText = fmt(r.diff) + ' (' + r.diffPct.toFixed(0) + '%)';
+        trendIcon = '↓'; trendColor = 'var(--green)'; trendText = fmt(Math.abs(r.diff)) + ' (' + Math.abs(r.diffPct).toFixed(0) + '%)';
       }
 
       // Highlight if current month is significantly over budget
@@ -2906,6 +2912,8 @@ function renderTracker() {
     const rem = bud - act;
     const pct = bud > 0 ? (act / bud * 100) : (act > 0 ? 999 : 0);
     const cls = pct > 100 ? 'badge-red' : pct > 80 ? 'badge-amber' : 'badge-green';
+    // Show actual % for budgeted categories (even when >200%); "OVER" for zero-budget with spending; "—" otherwise
+    const pctDisplay = bud === 0 ? (act > 0 ? 'OVER' : '—') : pct.toFixed(0) + '%';
     const remColor = rem >= 0 ? 'green' : 'red';
     const key = c.replace(/[^a-z]/gi, '_');
     // Only show editable input in combined view; personal view uses transaction sums
@@ -2917,7 +2925,7 @@ function renderTracker() {
       '<td class="num">' + fmt(bud) + '</td>' +
       inputCell +
       '<td class="num" id="var-rem-' + key + '" style="color:var(--' + remColor + ')">' + (rem >= 0 ? '' : '-') + fmt(Math.abs(rem)) + '</td>' +
-      '<td><span class="badge ' + cls + '" id="var-pct-' + key + '">' + (pct > 200 ? '—' : pct.toFixed(0) + '%') + '</span></td>' +
+      '<td><span class="badge ' + cls + '" id="var-pct-' + key + '">' + pctDisplay + '</span></td>' +
     '</tr>';
   }).join('') +
   '<tr class="total-row" id="var-total-row"><td>Total variable</td><td class="num">' + fmt(totalVarBudget) + '</td><td class="num" id="var-total-actual" style="font-family:var(--mono)">' + fmt(totalActual) + '</td><td class="num" id="var-total-rem" style="color:var(--' + (totalVarBudget - totalActual >= 0 ? 'green' : 'red') + ')">' + fmt(Math.abs(totalVarBudget - totalActual)) + '</td><td></td></tr>';
@@ -4190,11 +4198,13 @@ function updateCatActual(input) {
   const txns = getMonthTxns(year, month);
   const txnCatMap = {};
   VAR_CATS.forEach(c => txnCatMap[c] = 0);
-  txns.forEach(t => { if (txnCatMap[t.cat] !== undefined) txnCatMap[t.cat] += t.amount; else txnCatMap['Other'] += t.amount; });
+  // Must exclude Fixed transactions — same rule as renderTracker — to avoid inflating variable totals
+  txns.forEach(t => { if (t.type === 'Fixed') return; if (txnCatMap[t.cat] !== undefined) txnCatMap[t.cat] += t.amount; else txnCatMap['Other'] += t.amount; });
 
   let newTotal = 0;
   VAR_CATS.forEach(c => {
-    const act = directMap[c] !== undefined ? directMap[c] : txnCatMap[c];
+    // Transactions always win; directActuals only fill in when there are zero transaction entries
+    const act = txnCatMap[c] > 0 ? txnCatMap[c] : (directMap[c] !== undefined && directMap[c] > 0 ? directMap[c] : 0);
     newTotal += act;
 
     // Update this row's remaining + badge if it's in the table
