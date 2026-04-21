@@ -242,9 +242,11 @@
     .tbl .num { font-size: 11px; }
     /* Hide less important columns on very small screens */
     .hide-mobile-sm { display: none; }
-    /* Make variable table more compact on mobile */
+    /* Make variable table more compact on mobile — hide "projected" and "remaining" */
     #tracker-var-table th:nth-child(4),
-    #tracker-var-table td:nth-child(4) { display: none; }
+    #tracker-var-table td:nth-child(4),
+    #tracker-var-table th:nth-child(5),
+    #tracker-var-table td:nth-child(5) { display: none; }
     /* Ensure tracker header wraps nicely */
     #page-tracker > .flex { gap: 8px; }
     #page-tracker .btn-primary { font-size: 12px; padding: 7px 12px; }
@@ -441,7 +443,7 @@
     <div class="card">
       <div class="card-title">variable expenses — actuals vs budget</div>
       <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;"><table class="tbl" id="tracker-var-table">
-        <thead><tr><th>category</th><th class="num">budget</th><th class="num">actual ✎</th><th class="num">remaining</th><th>status</th></tr></thead>
+        <thead><tr><th>category</th><th class="num">budget</th><th class="num">actual ✎</th><th class="num" title="Projected month-end spend at current daily pace">projected</th><th class="num">remaining</th><th>status</th></tr></thead>
         <tbody></tbody>
       </table></div>
     </div>
@@ -461,6 +463,12 @@
       <tbody></tbody>
     </table>
     <div id="tracker-empty" style="text-align:center;padding:24px;color:var(--text3);font-size:13px;">No transactions yet. Click "+ Add expense" to start tracking.</div>
+  </div>
+
+  <!-- ════════════ MONTH CLOSE RITUAL ════════════ -->
+  <div class="card" id="month-close-card" style="margin-top:16px;">
+    <div class="card-title">month close review <span style="font-size:11px;font-weight:400;color:var(--text3);margin-left:8px;">a 60-second end-of-month sanity check</span></div>
+    <div id="month-close-body"></div>
   </div>
 </div>
 
@@ -533,6 +541,16 @@
     <strong>How it works:</strong> St.George calculates your monthly P&amp;I repayment, then divides by 2 for the fortnightly direct debit.
   </div>
 
+  <div id="mort-recon-banner" style="display:none;margin-bottom:16px;padding:14px 16px;border-radius:10px;background:var(--amber-bg);border-left:4px solid var(--amber);color:var(--amber);font-size:13px;line-height:1.5;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:240px;" id="mort-recon-msg"></div>
+      <div style="display:flex;gap:8px;flex-shrink:0;">
+        <button class="btn btn-sm" style="background:var(--surface);color:var(--text2);border:1px solid var(--border2);" onclick="snoozeMortReconBanner(30)">Snooze 30d</button>
+        <button class="btn btn-sm" style="background:var(--surface);color:var(--text2);border:1px solid var(--border2);" onclick="dismissMortReconBanner()">Dismiss</button>
+      </div>
+    </div>
+  </div>
+
   <div class="metrics" id="mort-metrics"></div>
 
   <div class="card mb-16">
@@ -557,6 +575,37 @@
   <div class="card">
     <div class="card-title">rate sensitivity table</div>
     <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;"><table class="tbl" id="mort-table"></table></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">payoff projection <span style="font-size:11px;font-weight:400;color:var(--text3);margin-left:8px;">month-by-month amortisation factoring in offset growth</span></div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:14px;line-height:1.5;">Simulates monthly amortisation at the current rate, growing your offset balance by the extra surplus you allocate each month. Interest each month = (loan − offset) × rate ÷ 12. Principal = repayment − interest. Offset grows by the extra-to-offset amount. Adjust the sliders to see how paying more into offset brings payoff forward.</div>
+
+    <div class="grid-2" style="gap:16px;margin-bottom:14px;">
+      <div>
+        <div class="slider-row" style="margin-bottom:10px;">
+          <span class="slider-lbl">Extra to offset / month</span>
+          <input type="range" id="mpp-extra" min="0" max="4000" step="50" value="500" oninput="updatePayoffProjection()">
+          <span class="slider-val" id="mpp-extra-v">$500</span>
+        </div>
+        <div class="slider-sub" style="font-size:11px;color:var(--text3);margin-top:-4px;">Money routed into offset on top of scheduled repayment. Reduces effective balance → less interest → faster payoff.</div>
+      </div>
+      <div>
+        <div class="slider-row" style="margin-bottom:10px;">
+          <span class="slider-lbl">Rate assumption (% p.a.)</span>
+          <input type="range" id="mpp-rate" min="3.00" max="9.00" step="0.05" value="5.80" oninput="updatePayoffProjection()">
+          <span class="slider-val" id="mpp-rate-v">5.80%</span>
+        </div>
+        <div class="slider-sub" style="font-size:11px;color:var(--text3);margin-top:-4px;">Assumed average rate for the remaining term. Defaults to current config rate.</div>
+      </div>
+    </div>
+
+    <div class="metrics" id="mpp-metrics"></div>
+
+    <div style="margin-top:16px;font-size:12px;color:var(--text3);">
+      <strong style="color:var(--text2);">Payoff milestones:</strong>
+      <div id="mpp-milestones" style="margin-top:6px;"></div>
+    </div>
   </div>
 </div>
 
@@ -840,6 +889,10 @@
       <div class="form-row">
         <label>Original term (months)</label>
         <input type="number" id="cfg-orig-term" value="360">
+      </div>
+      <div class="form-row">
+        <label>Bank's actual repayment ($/fn) <span style="font-size:11px;color:var(--text3);">drives reconciliation banner</span></label>
+        <input type="number" id="cfg-bank-actual" value="1827" step="0.01">
       </div>
     </div>
   </div>
@@ -1243,6 +1296,10 @@
     <div class="form-row">
       <label>Goal target ($) — optional</label>
       <input type="number" id="acc-goal-target" placeholder="e.g. 20000" step="1" min="0">
+    </div>
+    <div class="form-row">
+      <label>Monthly contribution ($) — optional <span style="font-size:11px;color:var(--text3);">drives projected completion date</span></label>
+      <input type="number" id="acc-monthly-contrib" placeholder="e.g. 500" step="1" min="0">
     </div>
     <div class="form-row" style="display:flex;align-items:center;gap:12px;margin-bottom:0;">
       <label style="margin:0;display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;">
@@ -1763,7 +1820,8 @@ let state = {
     sophieAmt: 2671.72, sophieFreq: 'fortnightly',
     loanBalance: 653456.44, rate: 5.80, offset: 26200,
     originalLoan: 658000, originalRate: 5.30,
-    settlementDate: '2025-12-01', originalTermMonths: 360
+    settlementDate: '2025-12-01', originalTermMonths: 360,
+    bankActualRepayment: 1827  // what St.George is actually direct-debiting (fortnightly). Update when bank revises.
   },
   merchantRules: JSON.parse(localStorage.getItem('merchant_rules') || '[]'),
   settlements: JSON.parse(localStorage.getItem('settlements') || '{}'),
@@ -2150,6 +2208,51 @@ function getPersonActuals(tab, txns, includeFixed) {
   }, 0);
 }
 
+// SINGLE SOURCE OF TRUTH for per-category and total variable actual spend.
+// Used by Dashboard, Tracker (and Month-Close). Previously Dashboard summed
+// txns directly while Tracker bucketed into catActuals + filled gaps with
+// directActuals — so views diverged whenever a category had a manual
+// override but no transactions. Both call this now so they cannot drift.
+//
+// Returns: { cats, txnsForTab, catActuals, totalActual, txnCatTotals, directActuals }
+//   - txnsForTab: tab-filtered transaction list (combined/shared/blayne/sophie)
+//   - catActuals: per-category actuals (txn total OR directActual fallback)
+//   - totalActual: sum of catActuals across all VAR_CATS
+function computeVariableActuals(tab, year, month) {
+  const allTxns = getMonthTxns(year, month);
+  let txnsForTab;
+  if (tab === 'combined') {
+    txnsForTab = allTxns;
+  } else if (tab === 'shared') {
+    txnsForTab = allTxns.filter(t => t.owner === 'Shared');
+  } else {
+    const ownerFilter = tab === 'blayne' ? 'Blayne' : 'Sophie';
+    txnsForTab = allTxns.filter(t => t.owner === ownerFilter || t.owner === 'Shared');
+  }
+
+  const cats = getVarCats();
+  const txnCatTotals = {};
+  cats.forEach(c => txnCatTotals[c] = 0);
+  txnsForTab.forEach(t => {
+    if (t.type === 'Fixed') return; // fixed counted in baseFixed elsewhere
+    const share = (t.owner === 'Shared' && (tab === 'blayne' || tab === 'sophie')) ? 0.5 : 1;
+    if (txnCatTotals[t.cat] !== undefined) txnCatTotals[t.cat] += t.amount * share;
+    else txnCatTotals['Other'] += t.amount * share;
+  });
+
+  const monthKey = getMonthKey(year, month);
+  const directActuals = (state.directActuals && state.directActuals[monthKey]) || {};
+  const catActuals = {};
+  cats.forEach(c => {
+    const txnTotal = txnCatTotals[c] || 0;
+    if (txnTotal > 0) catActuals[c] = txnTotal;
+    else if (tab === 'combined' && directActuals[c] !== undefined && directActuals[c] > 0) catActuals[c] = directActuals[c];
+    else catActuals[c] = 0;
+  });
+  const totalActual = cats.reduce((s, c) => s + (catActuals[c] || 0), 0);
+  return { cats, txnsForTab, catActuals, totalActual, txnCatTotals, directActuals };
+}
+
 function renderDashboard() {
   // Refresh dynamic categories and budget map
   VAR_CATS = getVarCats();
@@ -2169,7 +2272,10 @@ function renderDashboard() {
 
   const txns = getMonthTxns(year, month);
   console.log('[Dashboard] Rendering for', year, MONTHS_FULL[month], '- txns found:', txns.length, '- key:', getMonthKey(year, month));
-  const actualSpend = getPersonActuals(tab, txns);
+  // Use shared helper so Dashboard and Tracker can never disagree on this number.
+  // Includes per-category direct-actual fallback that Dashboard previously missed.
+  const actuals = computeVariableActuals(tab, year, month);
+  const actualSpend = actuals.totalActual;
   const remainingVar = expenses.variable - actualSpend;
   const projSurplus = incomeData.total - expenses.fixed - actualSpend;
 
@@ -2811,32 +2917,12 @@ function renderTracker() {
   }
 
   // ── Actuals from direct overrides + transactions ──
-  // Personal tabs halve Shared transactions to reflect 50/50 fair share
+  // Delegate to shared helper so Dashboard and Tracker can never disagree.
   const monthKey = getMonthKey(year, month);
-  const directActuals = (state.directActuals && state.directActuals[monthKey]) || {};
-  const txnCatTotals = {};
-  VAR_CATS.forEach(c => txnCatTotals[c] = 0);
-  txns.forEach(t => {
-    const isFixed = t.type === 'Fixed';
-    if (isFixed) return; // Fixed transactions don't count toward variable actuals
-    const share = (t.owner === 'Shared' && (tab === 'blayne' || tab === 'sophie')) ? 0.5 : 1;
-    if (txnCatTotals[t.cat] !== undefined) txnCatTotals[t.cat] += t.amount * share;
-    else txnCatTotals['Other'] += t.amount * share;
-  });
-  // Transactions always take priority. Direct overrides are only used when
-  // there are ZERO transactions for that category AND a manual override exists.
-  const catActuals = {};
-  VAR_CATS.forEach(c => {
-    var txnTotal = txnCatTotals[c] || 0;
-    if (txnTotal > 0) {
-      catActuals[c] = txnTotal;
-    } else if (tab === 'combined' && directActuals[c] !== undefined && directActuals[c] > 0) {
-      catActuals[c] = directActuals[c];
-    } else {
-      catActuals[c] = 0;
-    }
-  });
-  const totalActual = VAR_CATS.reduce((s, c) => s + (catActuals[c] || 0), 0);
+  const _actuals = computeVariableActuals(tab, year, month);
+  const catActuals = _actuals.catActuals;
+  const totalActual = _actuals.totalActual;
+  const directActuals = _actuals.directActuals;
 
   // ── Context bar ──
   const ctxBar = document.getElementById('tracker-context-bar');
@@ -2878,21 +2964,20 @@ function renderTracker() {
   const tabLabels = { combined: '', shared: ' — Shared (2UP)', blayne: ' — Blayne', sophie: ' — Sophie' };
   document.getElementById('tracker-month-label').textContent = MONTHS_FULL[month] + ' ' + year + (tabLabels[tab] || '');
 
+  // ── Pace calculation (hoisted so the variable-table render can use it) ──
+  const _now2 = today();
+  const isCurrentMonth = (year === _now2.getFullYear() && month === _now2.getMonth());
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const dayOfMonth = isCurrentMonth ? _now2.getDate() : daysInMonth;
+  const pctThrough = dayOfMonth / daysInMonth;
+  const expectedSpend = totalVar * pctThrough;
+  const paceRatio = expectedSpend > 0 ? totalActual / expectedSpend : 0;
+
   // ── Metrics ──
   const metricsEl = document.getElementById('tracker-metrics');
   if (metricsEl) {
     // Get the breakdown for personal tabs (own vs ½ shared)
     const expBreakdown = getPersonExpenses(tab, state.budgetItems, mortMonthly);
-
-    // Pace calculation: how far through the month are we?
-    // Use today() if viewing the current month, otherwise assume the month is complete.
-    const now2 = today();
-    const isCurrentMonth = (year === now2.getFullYear() && month === now2.getMonth());
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const dayOfMonth = isCurrentMonth ? now2.getDate() : daysInMonth;
-    const pctThrough = dayOfMonth / daysInMonth;
-    const expectedSpend = totalVar * pctThrough;
-    const paceRatio = expectedSpend > 0 ? totalActual / expectedSpend : 0;
 
     // Fixed sub-text — show breakdown for personal tabs
     let fixedSub;
@@ -2977,6 +3062,20 @@ function renderTracker() {
     const cls = pct >= 100 ? 'badge-red' : pct >= 80 ? 'badge-amber' : 'badge-green';
     const remColor = rem >= 0 ? 'green' : 'red';
     const key = c.replace(/[^a-z]/gi, '_');
+    // Per-category velocity: project month-end spend at current pace.
+    // Only meaningful for the current month and after at least 1 day with activity.
+    let projCell;
+    if (isCurrentMonth && act > 0 && dayOfMonth >= 1) {
+      const projected = (act / dayOfMonth) * daysInMonth;
+      const projColor = bud > 0 && projected > bud ? 'red' : projected > bud * 0.9 ? 'amber' : 'green';
+      const projDelta = projected - bud;
+      const projTitle = bud > 0
+        ? `Projected ${fmt(projected)} vs ${fmt(bud)} budget = ${projDelta >= 0 ? '+' : ''}${fmt(projDelta)}`
+        : `Projected ${fmt(projected)} (no budget set)`;
+      projCell = '<td class="num" style="font-family:var(--mono);color:var(--' + projColor + ');" title="' + projTitle + '">' + fmt(projected) + '</td>';
+    } else {
+      projCell = '<td class="num" style="color:var(--text3);">—</td>';
+    }
     // Only show editable input in combined view; personal view uses transaction sums
     const inputCell = tab === 'combined'
       ? '<td style="padding:4px 10px;"><input type="number" min="0" step="1" value="' + (act > 0 ? act.toFixed(0) : '') + '" placeholder="0" data-cat="' + c + '" data-year="' + year + '" data-month="' + month + '" oninput="updateCatActual(this)" style="width:90px;text-align:right;font-family:var(--mono);font-size:13px;padding:5px 8px;border:1px solid var(--border2);border-radius:6px;background:var(--surface);"></td>'
@@ -2985,11 +3084,22 @@ function renderTracker() {
       '<td style="font-size:13px;">' + c + '</td>' +
       '<td class="num">' + fmt(bud) + '</td>' +
       inputCell +
+      projCell +
       '<td class="num" id="var-rem-' + key + '" style="color:var(--' + remColor + ')">' + (rem >= 0 ? '' : '-') + fmt(Math.abs(rem)) + '</td>' +
       '<td><span class="badge ' + cls + '" id="var-pct-' + key + '">' + (pct > 200 ? '—' : pct.toFixed(0) + '%') + '</span></td>' +
     '</tr>';
   }).join('') +
-  '<tr class="total-row" id="var-total-row"><td>Total variable</td><td class="num">' + fmt(totalVarBudget) + '</td><td class="num" id="var-total-actual" style="font-family:var(--mono)">' + fmt(totalActual) + '</td><td class="num" id="var-total-rem" style="color:var(--' + (totalVarBudget - totalActual >= 0 ? 'green' : 'red') + ')">' + fmt(Math.abs(totalVarBudget - totalActual)) + '</td><td></td></tr>';
+  (function() {
+    // Total row — also includes projected EOM total when current month
+    const totalProj = (isCurrentMonth && totalActual > 0)
+      ? (totalActual / dayOfMonth) * daysInMonth
+      : null;
+    const totalProjColor = totalProj == null ? 'text3' : (totalProj > totalVarBudget ? 'red' : totalProj > totalVarBudget * 0.9 ? 'amber' : 'green');
+    const totalProjCell = totalProj == null
+      ? '<td class="num" style="color:var(--text3);">—</td>'
+      : '<td class="num" style="font-family:var(--mono);color:var(--' + totalProjColor + ');">' + fmt(totalProj) + '</td>';
+    return '<tr class="total-row" id="var-total-row"><td>Total variable</td><td class="num">' + fmt(totalVarBudget) + '</td><td class="num" id="var-total-actual" style="font-family:var(--mono)">' + fmt(totalActual) + '</td>' + totalProjCell + '<td class="num" id="var-total-rem" style="color:var(--' + (totalVarBudget - totalActual >= 0 ? 'green' : 'red') + ')">' + fmt(Math.abs(totalVarBudget - totalActual)) + '</td><td></td></tr>';
+  })();
 
   // ── Fixed table (filtered to current tab) ──
   const fixedTbody = document.querySelector('#tracker-fixed-table tbody');
@@ -3031,6 +3141,132 @@ function renderTracker() {
       '<td><button class="btn btn-sm btn-danger" onclick="deleteTransaction(\'' + getMonthKey(year, month) + '\',' + realIdx + ')">×</button></td>' +
     '</tr>';
   }).join('');
+
+  // Render the month close review at the bottom of the tracker
+  renderMonthClose(year, month, tab);
+}
+
+// ════════════════ MONTH CLOSE RITUAL ════════════════
+// End-of-month review: shows total variable spend vs budget, top overruns,
+// under-budget wins, and a lock/roll-forward action. Uses computeVariableActuals
+// so numbers stay consistent with the dashboard + tracker.
+function renderMonthClose(year, month, tab) {
+  const body = document.getElementById('month-close-body');
+  if (!body) return;
+
+  const now = today();
+  const isCurrentMonth = (year === now.getFullYear() && month === now.getMonth());
+  const isFuture = (year > now.getFullYear()) || (year === now.getFullYear() && month > now.getMonth());
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const dayOfMonth = isCurrentMonth ? now.getDate() : daysInMonth;
+  const monthLabel = MONTHS_FULL[month] + ' ' + year;
+  const monthKey = getMonthKey(year, month);
+
+  if (isFuture) {
+    body.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text3);font-size:13px;">Month close opens once the month has started — nothing to review for ' + monthLabel + ' yet.</div>';
+    return;
+  }
+
+  // Reuse the shared helper for consistency with dashboard + tracker
+  const { cats, catActuals, totalActual } = computeVariableActuals(tab, year, month);
+
+  // Build budget map that matches the current tab (same split rules as elsewhere)
+  let budgetMap;
+  try {
+    budgetMap = buildVarBudgetMap ? buildVarBudgetMap() : {};
+  } catch (e) {
+    budgetMap = {};
+  }
+  // Adjust budget map for shared-split tabs (personal tabs include 50% of Shared)
+  const totalBudget = cats.reduce((s, c) => s + (budgetMap[c] || 0), 0);
+
+  // Overruns and wins
+  const rows = cats.map(c => {
+    const a = catActuals[c] || 0;
+    const b = budgetMap[c] || 0;
+    return { cat: c, actual: a, budget: b, diff: a - b, pct: b > 0 ? a / b : (a > 0 ? 2 : 0) };
+  });
+  const overruns = rows.filter(r => r.budget > 0 && r.diff > 0).sort((a, b) => b.diff - a.diff).slice(0, 3);
+  const wins = rows.filter(r => r.budget > 0 && r.diff < -5).sort((a, b) => a.diff - b.diff).slice(0, 3);
+
+  // Close state flag (persisted in localStorage — intentionally not synced to Supabase)
+  const closeKey = 'month_closed_' + monthKey + '_' + tab;
+  let isClosed = false;
+  try { isClosed = localStorage.getItem(closeKey) === '1'; } catch (e) {}
+
+  // Headline status
+  const diffTotal = totalActual - totalBudget;
+  const headlineColor = diffTotal <= 0 ? 'var(--green)' : diffTotal <= totalBudget * 0.1 ? 'var(--amber)' : 'var(--red)';
+  const headlineText = diffTotal <= 0
+    ? 'Under budget by ' + fmt(Math.abs(diffTotal))
+    : 'Over budget by ' + fmt(diffTotal);
+
+  const progressNote = isCurrentMonth
+    ? '<span style="color:var(--text3);">Month still in progress — ' + dayOfMonth + ' of ' + daysInMonth + ' days</span>'
+    : '<span style="color:var(--text3);">Final numbers</span>';
+
+  let html = '';
+  html += '<div style="font-size:12px;color:var(--text3);margin-bottom:14px;">Reviewing <strong style="color:var(--text2);">' + monthLabel + '</strong> · <strong style="color:var(--text2);">' + tab.charAt(0).toUpperCase() + tab.slice(1) + '</strong> view · ' + progressNote + '</div>';
+
+  // Top-line summary
+  html += '<div class="metrics" style="margin-bottom:16px;">';
+  html += '<div class="metric"><div class="metric-label">variable actual</div><div class="metric-value">' + fmt(totalActual) + '</div><div class="metric-sub">across ' + cats.length + ' categories</div></div>';
+  html += '<div class="metric"><div class="metric-label">variable budget</div><div class="metric-value">' + fmt(totalBudget) + '</div><div class="metric-sub">from Budget Settings</div></div>';
+  html += '<div class="metric"><div class="metric-label">result</div><div class="metric-value" style="color:' + headlineColor + ';">' + headlineText + '</div><div class="metric-sub">' + (diffTotal === 0 ? 'spot on' : (totalBudget > 0 ? (diffTotal/totalBudget*100).toFixed(1) + '% of budget' : '—')) + '</div></div>';
+  html += '</div>';
+
+  // Top 3 overruns
+  if (overruns.length > 0) {
+    html += '<div style="margin-bottom:14px;">';
+    html += '<div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:8px;">⚠ Top overruns</div>';
+    html += overruns.map(r => {
+      return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;">' +
+        '<span>' + r.cat + '</span>' +
+        '<span style="font-family:var(--mono);color:var(--red);">' + fmt(r.actual) + ' / ' + fmt(r.budget) + ' <span style="color:var(--text3);">(+' + fmt(r.diff) + ')</span></span>' +
+      '</div>';
+    }).join('');
+    html += '</div>';
+  }
+
+  // Top 3 wins
+  if (wins.length > 0) {
+    html += '<div style="margin-bottom:14px;">';
+    html += '<div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:8px;">✓ Under-budget wins</div>';
+    html += wins.map(r => {
+      return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;">' +
+        '<span>' + r.cat + '</span>' +
+        '<span style="font-family:var(--mono);color:var(--green);">' + fmt(r.actual) + ' / ' + fmt(r.budget) + ' <span style="color:var(--text3);">(' + fmt(r.diff) + ')</span></span>' +
+      '</div>';
+    }).join('');
+    html += '</div>';
+  }
+
+  // Close button (only for past months; disabled otherwise)
+  if (!isCurrentMonth) {
+    html += '<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);display:flex;gap:10px;align-items:center;flex-wrap:wrap;">';
+    if (isClosed) {
+      html += '<span style="font-size:13px;color:var(--green);">✓ ' + monthLabel + ' closed</span>';
+      html += '<button class="btn btn-sm" onclick="reopenMonth(\'' + closeKey + '\')">Reopen</button>';
+    } else {
+      html += '<button class="btn btn-primary" onclick="closeMonth(\'' + closeKey + '\',\'' + monthLabel + '\')">Lock ' + monthLabel + '</button>';
+      html += '<span style="font-size:12px;color:var(--text3);">Marks this month as reviewed. Purely visual — doesn\'t prevent edits.</span>';
+    }
+    html += '</div>';
+  } else {
+    html += '<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);font-size:12px;color:var(--text3);">Come back at month-end to lock ' + monthLabel + ' once the final transactions have synced.</div>';
+  }
+
+  body.innerHTML = html;
+}
+
+function closeMonth(key, label) {
+  try { localStorage.setItem(key, '1'); } catch (e) {}
+  renderTracker();
+}
+
+function reopenMonth(key) {
+  try { localStorage.removeItem(key); } catch (e) {}
+  renderTracker();
 }
 
 // ════════════════ FORECAST ════════════════
@@ -3155,6 +3391,43 @@ function renderForecast() {
 
 // ════════════════ MORTGAGE ════════════════
 
+// Mortgage reconciliation banner — warns when St.George's actual direct-debit
+// (cfg.bankActualRepayment) differs from the mathematically correct repayment.
+// Snooze/dismiss state in localStorage so it doesn't nag after acknowledgement.
+function mortReconSnoozedUntil() {
+  try { return parseInt(localStorage.getItem('mort_recon_snooze') || '0', 10) || 0; }
+  catch (e) { return 0; }
+}
+function snoozeMortReconBanner(days) {
+  const until = Date.now() + days * 24 * 60 * 60 * 1000;
+  try { localStorage.setItem('mort_recon_snooze', String(until)); } catch (e) {}
+  const el = document.getElementById('mort-recon-banner');
+  if (el) el.style.display = 'none';
+}
+function dismissMortReconBanner() {
+  // Dismiss = snooze 10 years; user can re-show by clearing localStorage
+  snoozeMortReconBanner(3650);
+}
+function renderMortReconBanner() {
+  const el = document.getElementById('mort-recon-banner');
+  const msg = document.getElementById('mort-recon-msg');
+  if (!el || !msg) return;
+  if (Date.now() < mortReconSnoozedUntil()) { el.style.display = 'none'; return; }
+  const cfg = state.config || {};
+  const bankActual = Number(cfg.bankActualRepayment) || 0;
+  if (!bankActual) { el.style.display = 'none'; return; }
+  const correctPmt = calcMortgagePmt(cfg.loanBalance, Number(cfg.rate) || 5.80);
+  const diffFn = correctPmt - bankActual;
+  // Tolerance: less than $2/fn difference is noise (rounding)
+  if (Math.abs(diffFn) < 2) { el.style.display = 'none'; return; }
+  const diffMo = diffFn * 2;
+  const action = diffFn > 0
+    ? `St.George is <strong>undercharging ${fmt(Math.abs(diffFn))}/fn</strong> (${fmt(Math.abs(diffMo))}/mo). Call the bank to update the repayment, or you're accruing interest on the gap. Correct amount: <strong>${fmt(correctPmt)}/fn</strong>, currently charging ${fmt(bankActual)}/fn.`
+    : `St.George is <strong>overcharging ${fmt(Math.abs(diffFn))}/fn</strong> (${fmt(Math.abs(diffMo))}/mo). Worth a call to reset the repayment — the correct amount is <strong>${fmt(correctPmt)}/fn</strong>, currently charging ${fmt(bankActual)}/fn.`;
+  msg.innerHTML = '⚠ <strong>Repayment out of sync</strong> — ' + action;
+  el.style.display = 'block';
+}
+
 function renderMortgage() {
   const cfg = state.config || {};
   const origRate = Number(cfg.originalRate) || 5.30;
@@ -3162,6 +3435,7 @@ function renderMortgage() {
   const origLoan = Number(cfg.originalLoan) || 658000;
   const origPmt = getOriginalPmt();
   const curPmt = calcMortgagePmt(cfg.loanBalance, curRate);
+  renderMortReconBanner();
 
   // Populate "How it works" dynamically from config
   const howEl = document.getElementById('mort-howitworks');
@@ -3258,6 +3532,121 @@ function updateMortgage() {
       const cls = s.cur ? ' class="total-row"' : '';
       return `<tr${cls}><td><span class="badge ${s.badge}">${s.label}</span></td><td>${s.rate.toFixed(2)}%</td><td class="num">${fmt(p)}/fn</td><td class="num">${fmt(p*2)}/mo</td><td class="num" style="color:var(--${d<=0?'green':d<100?'amber':'red'})">${sign(d)}${fmt(Math.abs(d))}/fn</td><td class="num" style="color:var(--${dMo<=0?'green':dMo<200?'amber':'red'})">${sign(-dMo)}${fmt(Math.abs(dMo))}/mo</td></tr>`;
     }).join('')}</tbody>`;
+
+  // Drive the payoff projection using the same rate picked in the slider above
+  renderPayoffProjection();
+}
+
+// ════════════════ MORTGAGE PAYOFF PROJECTION ════════════════
+// Simulates monthly amortisation with offset growth.
+// Each month: interest = (loan - offset) × rate/12; principal = scheduled_pmt - interest;
+// loan -= principal; offset += extraToOffset.
+// Payoff reached when loan <= offset (i.e. offset fully cancels remaining balance).
+function simulatePayoff(loanStart, offsetStart, rateAnnual, extraToOffset, maxMonths) {
+  maxMonths = maxMonths || 600;
+  let loan = loanStart;
+  let offset = offsetStart;
+  const monthlyPmt = calcMortgagePmt(loan, rateAnnual) * 2; // fortnightly ÷ 2 × 2 per month (calcMortgagePmt returns fortnightly; bank = monthly ÷ 2 so fortnightly × 2 = monthly)
+  let totalInterest = 0;
+  const milestones = {};
+  const targets = [0.75, 0.50, 0.25, 0.10, 0.01];
+  let nextTargetIdx = 0;
+  let months = 0;
+  for (let m = 1; m <= maxMonths; m++) {
+    const eff = Math.max(loan - offset, 0);
+    const monthlyInt = eff * (rateAnnual / 100) / 12;
+    let principal = monthlyPmt - monthlyInt;
+    if (principal > loan) principal = loan;
+    loan -= principal;
+    offset += extraToOffset;
+    totalInterest += monthlyInt;
+    months = m;
+    // Track milestones based on remaining principal (loan - offset)
+    const remainingPct = Math.max(loan - offset, 0) / loanStart;
+    while (nextTargetIdx < targets.length && remainingPct <= targets[nextTargetIdx]) {
+      milestones[targets[nextTargetIdx]] = m;
+      nextTargetIdx++;
+    }
+    if (loan <= offset || loan <= 0.01) break;
+  }
+  return { months, totalInterest, monthlyPmt, milestones, finalLoan: loan, finalOffset: offset };
+}
+
+function renderPayoffProjection() {
+  const cfg = state.config || {};
+  const extraEl = document.getElementById('mpp-extra');
+  const extraVal = document.getElementById('mpp-extra-v');
+  const rateEl = document.getElementById('mpp-rate');
+  const rateVal = document.getElementById('mpp-rate-v');
+  const metricsEl = document.getElementById('mpp-metrics');
+  const milesEl = document.getElementById('mpp-milestones');
+  if (!extraEl || !rateEl || !metricsEl) return;
+
+  // Sync rate slider to the main mortgage slider's current value (if different)
+  const mainRateEl = document.getElementById('mort-rate');
+  if (mainRateEl) {
+    const r = parseFloat(mainRateEl.value);
+    if (!isNaN(r)) rateEl.value = r.toFixed(2);
+  }
+
+  const extra = parseFloat(extraEl.value) || 0;
+  const rate = parseFloat(rateEl.value) || Number(cfg.rate) || 5.80;
+  if (extraVal) extraVal.textContent = fmt(extra);
+  if (rateVal) rateVal.textContent = rate.toFixed(2) + '%';
+
+  const loanStart = cfg.loanBalance || 0;
+  const offsetStart = getTotalOffset();
+
+  // Baseline: current offset, no extra
+  const baseline = simulatePayoff(loanStart, offsetStart, rate, 0);
+  const withExtra = simulatePayoff(loanStart, offsetStart, rate, extra);
+
+  const now = today();
+  const baseDate = new Date(now.getFullYear(), now.getMonth() + baseline.months, Math.min(now.getDate(), 28));
+  const fastDate = new Date(now.getFullYear(), now.getMonth() + withExtra.months, Math.min(now.getDate(), 28));
+  const monthsSaved = Math.max(baseline.months - withExtra.months, 0);
+  const yrsSaved = Math.floor(monthsSaved / 12);
+  const moSaved = monthsSaved - yrsSaved * 12;
+  const savedLabel = (yrsSaved > 0 ? yrsSaved + 'y ' : '') + moSaved + 'mo';
+  const interestSaved = Math.max(baseline.totalInterest - withExtra.totalInterest, 0);
+
+  const fmtDate = d => MONTHS[d.getMonth()] + ' ' + d.getFullYear();
+  const fmtTerm = m => {
+    const y = Math.floor(m / 12); const mm = m - y * 12;
+    return (y > 0 ? y + 'y ' : '') + mm + 'mo';
+  };
+
+  metricsEl.innerHTML =
+    '<div class="metric"><div class="metric-label">baseline payoff</div><div class="metric-value">' + fmtDate(baseDate) + '</div><div class="metric-sub">' + fmtTerm(baseline.months) + ' @ ' + rate.toFixed(2) + '%, offset ' + fmt(offsetStart) + '</div></div>' +
+    '<div class="metric"><div class="metric-label">with ' + fmt(extra) + '/mo extra</div><div class="metric-value pos">' + fmtDate(fastDate) + '</div><div class="metric-sub">' + fmtTerm(withExtra.months) + ' total</div></div>' +
+    '<div class="metric"><div class="metric-label">time saved</div><div class="metric-value pos">' + savedLabel + '</div><div class="metric-sub">' + monthsSaved + ' months earlier</div></div>' +
+    '<div class="metric"><div class="metric-label">interest saved</div><div class="metric-value pos">' + fmt(interestSaved) + '</div><div class="metric-sub">vs baseline total ' + fmt(baseline.totalInterest) + '</div></div>';
+
+  // Milestones on the "with extra" path
+  if (milesEl) {
+    const targets = [
+      { pct: 0.75, label: '25% paid down' },
+      { pct: 0.50, label: 'halfway there' },
+      { pct: 0.25, label: '75% paid down' },
+      { pct: 0.10, label: '90% paid down' },
+      { pct: 0.01, label: 'effectively paid off' }
+    ];
+    const rows = targets.map(t => {
+      const baseM = baseline.milestones[t.pct];
+      const fastM = withExtra.milestones[t.pct];
+      if (fastM === undefined) return null;
+      const fastD = new Date(now.getFullYear(), now.getMonth() + fastM, Math.min(now.getDate(), 28));
+      const baseD = baseM !== undefined ? new Date(now.getFullYear(), now.getMonth() + baseM, Math.min(now.getDate(), 28)) : null;
+      const saved = (baseM !== undefined) ? Math.max(baseM - fastM, 0) : 0;
+      const savedStr = saved > 0 ? ' <span style="color:var(--green);">(' + saved + 'mo earlier)</span>' : '';
+      return '<div style="padding:4px 0;font-size:12px;">• <strong style="color:var(--text2);">' + t.label + '</strong> — ' + fmtDate(fastD) + savedStr + '</div>';
+    }).filter(Boolean);
+    milesEl.innerHTML = rows.length ? rows.join('') : '<div style="color:var(--text3);font-size:11px;">No milestones hit within simulation window.</div>';
+  }
+}
+
+function updatePayoffProjection() {
+  renderPayoffProjection();
 }
 
 // ════════════════ CAR FINANCE ════════════════
@@ -3808,6 +4197,8 @@ function renderBudgetSettings() {
   if (settleEl) settleEl.value = cfg.settlementDate || '2025-12-01';
   const origTermEl = document.getElementById('cfg-orig-term');
   if (origTermEl) origTermEl.value = cfg.originalTermMonths != null ? cfg.originalTermMonths : 360;
+  const bankActEl = document.getElementById('cfg-bank-actual');
+  if (bankActEl) bankActEl.value = cfg.bankActualRepayment != null ? cfg.bankActualRepayment : 1827;
 
   const wrap = document.getElementById('budget-items-wrap');
   if (!wrap) return;
@@ -3933,6 +4324,7 @@ function saveBudgetSettings() {
   var origRateEl = document.getElementById('cfg-orig-rate');
   var settleEl = document.getElementById('cfg-settle-date');
   var origTermEl = document.getElementById('cfg-orig-term');
+  var bankActEl = document.getElementById('cfg-bank-actual');
   state.config = Object.assign({}, state.config, {
     blayneAmt: parseFloat(document.getElementById('cfg-blayne-amt').value),
     blayneFreq: document.getElementById('cfg-blayne-freq').value,
@@ -3946,6 +4338,7 @@ function saveBudgetSettings() {
     originalRate: origRateEl ? (parseFloat(origRateEl.value) || 5.30) : (state.config.originalRate || 5.30),
     settlementDate: settleEl && settleEl.value ? settleEl.value : (state.config.settlementDate || '2025-12-01'),
     originalTermMonths: origTermEl ? (parseInt(origTermEl.value, 10) || 360) : (state.config.originalTermMonths || 360),
+    bankActualRepayment: bankActEl ? (parseFloat(bankActEl.value) || 1827) : (state.config.bankActualRepayment || 1827),
   });
   saveState();
   flashSaved();
@@ -5065,6 +5458,23 @@ function renderSavings() {
         html += '<div style="background:var(--surface2);border-radius:4px;height:6px;overflow:hidden;">';
         html += '<div style="height:100%;border-radius:4px;background:' + barColor + ';width:' + goalPct.toFixed(1) + '%;transition:width 0.5s;"></div>';
         html += '</div>';
+
+        // Projected completion date (when contributions are set)
+        if (a.monthlyContribution > 0 && (a.balance || 0) < a.goalTarget) {
+          const remaining = a.goalTarget - (a.balance || 0);
+          const monthsToGoal = remaining / a.monthlyContribution;
+          const now = today();
+          const target = new Date(now.getFullYear(), now.getMonth() + Math.ceil(monthsToGoal), Math.min(now.getDate(), 28));
+          const mLabel = MONTHS[target.getMonth()] + ' ' + target.getFullYear();
+          const yrs = Math.floor(monthsToGoal / 12);
+          const mos = Math.round(monthsToGoal - yrs * 12);
+          const durLabel = (yrs > 0 ? yrs + 'y ' : '') + mos + 'mo';
+          html += '<div style="font-size:11px;color:var(--green);margin-top:6px;">';
+          html += '✓ Funded by <strong>' + mLabel + '</strong> at ' + fmt(a.monthlyContribution) + '/mo <span style="color:var(--text3);">(' + durLabel + ')</span>';
+          html += '</div>';
+        } else if (a.balance >= a.goalTarget) {
+          html += '<div style="font-size:11px;color:var(--green);margin-top:6px;">🎯 Goal reached</div>';
+        }
       }
 
       // Offset toggle switch
@@ -5130,6 +5540,8 @@ function openAddAccount() {
   document.getElementById('acc-rate').value = '';
   document.getElementById('acc-goal-label').value = '';
   document.getElementById('acc-goal-target').value = '';
+  var mcAdd = document.getElementById('acc-monthly-contrib');
+  if (mcAdd) mcAdd.value = '';
   setOffsetSwitch(false);
   document.getElementById('modal-account').classList.add('open');
 }
@@ -5144,6 +5556,8 @@ function editAccount(idx) {
   document.getElementById('acc-rate').value = a.rate || '';
   document.getElementById('acc-goal-label').value = a.goalLabel || '';
   document.getElementById('acc-goal-target').value = a.goalTarget || '';
+  var mcEdit = document.getElementById('acc-monthly-contrib');
+  if (mcEdit) mcEdit.value = a.monthlyContribution || '';
   setOffsetSwitch(a.isOffset);
   document.getElementById('modal-account').classList.add('open');
 }
@@ -5168,6 +5582,7 @@ function saveAccount() {
     rate: parseFloat(document.getElementById('acc-rate').value) || 0,
     goalLabel: document.getElementById('acc-goal-label').value.trim(),
     goalTarget: parseFloat(document.getElementById('acc-goal-target').value) || 0,
+    monthlyContribution: parseFloat(document.getElementById('acc-monthly-contrib').value) || 0,
     isOffset: document.getElementById('acc-is-offset').value === 'true'
   };
   if (!account.name) { alert('Please enter an account name'); return; }
