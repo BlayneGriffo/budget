@@ -6297,6 +6297,7 @@ function renderSettlement(year, month) {
 
   // ── YTD totals ──
   var ytdBlayne = 0, ytdSophie = 0;
+  var monthsWithData = 0;
   if (state.settlements) {
     var yearPrefix = year + '-';
     Object.keys(state.settlements).forEach(function(k) {
@@ -6304,6 +6305,7 @@ function renderSettlement(year, month) {
       var s = state.settlements[k] || {};
       ytdBlayne += (s.blayne || 0);
       ytdSophie += (s.sophie || 0);
+      if ((s.blayne || 0) + (s.sophie || 0) > 0) monthsWithData++;
     });
   }
   var ytdDiff = ytdBlayne - ytdSophie;
@@ -6321,33 +6323,32 @@ function renderSettlement(year, month) {
   var blayneFairPct = totalIn > 0 ? (blayneIn / totalIn * 100) : 50;
   var sophieFairPct = totalIn > 0 ? (sophieIn / totalIn * 100) : 50;
 
-  // Who owes whom based on transfers into the joint account
+  // Who owes whom based on transfers into the joint account (THIS MONTH)
   var diff = blayneIn - sophieIn;
   var settlementMsg;
   if (Math.abs(diff) < 1) {
-    settlementMsg = '<span style="color:var(--green);font-weight:500;">✓ Even — you\'ve both transferred the same amount.</span>';
+    settlementMsg = '<span style="color:var(--green);font-weight:500;">✓ Even for ' + MONTHS_FULL[month] + ' — you\'ve both transferred the same amount.</span>';
   } else if (diff > 0) {
-    settlementMsg = '<span style="color:var(--accent);font-weight:500;">Sophie owes Blayne <strong>' + fmt(diff / 2) + '</strong> to even up.</span>';
+    settlementMsg = '<span style="color:var(--accent);font-weight:500;">Sophie owes Blayne <strong>' + fmt(diff / 2) + '</strong> to even up ' + MONTHS_FULL[month] + '.</span>';
   } else {
-    settlementMsg = '<span style="color:var(--accent);font-weight:500;">Blayne owes Sophie <strong>' + fmt(Math.abs(diff) / 2) + '</strong> to even up.</span>';
+    settlementMsg = '<span style="color:var(--accent);font-weight:500;">Blayne owes Sophie <strong>' + fmt(Math.abs(diff) / 2) + '</strong> to even up ' + MONTHS_FULL[month] + '.</span>';
   }
 
+  var monthShort = MONTHS[month].toUpperCase();
+
   el.innerHTML =
-    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;padding:12px;background:linear-gradient(135deg,var(--surface2),var(--surface));border-radius:8px;border:1px solid var(--border2);">' +
-      '<div style="text-align:center;"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Blayne YTD</div><div style="font-size:18px;font-weight:700;color:#185FA5;margin-top:2px;">' + fmt(ytdBlayne) + '</div></div>' +
-      '<div style="text-align:center;"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Sophie YTD</div><div style="font-size:18px;font-weight:700;color:#D4537E;margin-top:2px;">' + fmt(ytdSophie) + '</div></div>' +
-      '<div style="text-align:center;"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">' + year + ' status</div><div style="font-size:13px;font-weight:500;margin-top:6px;line-height:1.3;">' + ytdMsg + '</div></div>' +
-    '</div>' +
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">' +
-      '<div style="padding:12px;background:var(--surface2);border-radius:8px;text-align:center;">' +
-        '<div style="font-size:12px;color:var(--text3);margin-bottom:4px;">Blayne transferred in</div>' +
-        '<div style="font-size:22px;font-weight:700;color:var(--text);">' + fmt(blayneIn) + '</div>' +
-        '<div style="font-size:11px;color:var(--text3);margin-top:2px;">' + blayneFairPct.toFixed(0) + '% of total</div>' +
+    // ── PRIMARY: This month ──
+    '<div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">' + MONTHS_FULL[month] + ' ' + year + ' — transferred into 2UP</div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:12px;">' +
+      '<div style="padding:14px;background:var(--surface2);border-radius:8px;text-align:center;border-left:3px solid #185FA5;">' +
+        '<div style="font-size:11px;color:var(--text3);margin-bottom:4px;">Blayne — ' + monthShort + '</div>' +
+        '<div style="font-size:24px;font-weight:700;color:var(--text);">' + fmt(blayneIn) + '</div>' +
+        '<div style="font-size:11px;color:var(--text3);margin-top:2px;">' + blayneFairPct.toFixed(0) + '% of this month\'s total</div>' +
       '</div>' +
-      '<div style="padding:12px;background:var(--surface2);border-radius:8px;text-align:center;">' +
-        '<div style="font-size:12px;color:var(--text3);margin-bottom:4px;">Sophie transferred in</div>' +
-        '<div style="font-size:22px;font-weight:700;color:var(--text);">' + fmt(sophieIn) + '</div>' +
-        '<div style="font-size:11px;color:var(--text3);margin-top:2px;">' + sophieFairPct.toFixed(0) + '% of total</div>' +
+      '<div style="padding:14px;background:var(--surface2);border-radius:8px;text-align:center;border-left:3px solid #D4537E;">' +
+        '<div style="font-size:11px;color:var(--text3);margin-bottom:4px;">Sophie — ' + monthShort + '</div>' +
+        '<div style="font-size:24px;font-weight:700;color:var(--text);">' + fmt(sophieIn) + '</div>' +
+        '<div style="font-size:11px;color:var(--text3);margin-top:2px;">' + sophieFairPct.toFixed(0) + '% of this month\'s total</div>' +
       '</div>' +
     '</div>' +
     '<div style="margin-bottom:12px;">' +
@@ -6360,17 +6361,29 @@ function renderSettlement(year, month) {
         '<span>Sophie ' + sophieFairPct.toFixed(0) + '%</span>' +
       '</div>' +
     '</div>' +
-    '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px;">' +
       '<div style="font-size:13px;">' + settlementMsg + '</div>' +
-      '<div style="font-size:12px;color:var(--text3);">Total shared spend: ' + fmt(sharedSpend) + ' · Fair share each: ' + fmt(fairShare) + '</div>' +
+      '<div style="font-size:12px;color:var(--text3);">Shared spend ' + MONTHS[month] + ': ' + fmt(sharedSpend) + ' · Fair share each: ' + fmt(fairShare) + '</div>' +
     '</div>' +
+
+    // ── SECONDARY: YTD running totals ──
+    '<div style="margin-top:14px;padding:12px;background:linear-gradient(135deg,var(--surface2),var(--surface));border-radius:8px;border:1px solid var(--border);">' +
+      '<div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">' + year + ' year-to-date — running total across ' + monthsWithData + ' month' + (monthsWithData === 1 ? '' : 's') + '</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">' +
+        '<div style="text-align:center;"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Blayne YTD</div><div style="font-size:18px;font-weight:700;color:#185FA5;margin-top:2px;">' + fmt(ytdBlayne) + '</div></div>' +
+        '<div style="text-align:center;"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Sophie YTD</div><div style="font-size:18px;font-weight:700;color:#D4537E;margin-top:2px;">' + fmt(ytdSophie) + '</div></div>' +
+        '<div style="text-align:center;"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">' + year + ' status</div><div style="font-size:13px;font-weight:500;margin-top:6px;line-height:1.3;">' + ytdMsg + '</div></div>' +
+      '</div>' +
+    '</div>' +
+
+    // ── Source note + override inputs ──
     (data._auto
-      ? '<div style="margin-top:12px;font-size:11px;color:var(--green);line-height:1.5;">✓ Auto-detected from Up Bank — transfers into the 2UP joint account from your personal accounts. Override below if needed.</div>'
-      : '<div style="margin-top:12px;font-size:11px;color:var(--text3);line-height:1.5;">No auto-detected transfers yet. Run an Up Bank sync to populate, or enter manually below.</div>') +
+      ? '<div style="margin-top:12px;font-size:11px;color:var(--green);line-height:1.5;">✓ Auto-detected from Up Bank — transfers into the 2UP joint account from your personal accounts during ' + MONTHS_FULL[month] + '. Override below if needed.</div>'
+      : '<div style="margin-top:12px;font-size:11px;color:var(--text3);line-height:1.5;">No auto-detected transfers for ' + MONTHS_FULL[month] + ' yet. Run an Up Bank sync to populate, or enter manually below.</div>') +
     '<div style="display:flex;gap:8px;margin-top:10px;align-items:flex-end;">' +
-      '<div style="flex:1;"><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px;">Blayne transferred ($)</label>' +
+      '<div style="flex:1;"><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px;">Blayne transferred — ' + MONTHS[month] + ' ($)</label>' +
         '<input type="number" id="settle-blayne" value="' + (blayneIn || '') + '" placeholder="0" step="0.01" min="0" style="width:100%;padding:6px 8px;font-size:13px;" oninput="updateSettlement(' + year + ',' + month + ')"></div>' +
-      '<div style="flex:1;"><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px;">Sophie transferred ($)</label>' +
+      '<div style="flex:1;"><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px;">Sophie transferred — ' + MONTHS[month] + ' ($)</label>' +
         '<input type="number" id="settle-sophie" value="' + (sophieIn || '') + '" placeholder="0" step="0.01" min="0" style="width:100%;padding:6px 8px;font-size:13px;" oninput="updateSettlement(' + year + ',' + month + ')"></div>' +
     '</div>';
 }
